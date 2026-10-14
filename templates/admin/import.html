@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block page_title %}Import karyawan{% endblock %}
+{% block page_description %}Satu file Excel untuk data pekerjaan dan akun Employee.{% endblock %}
+{% block content %}
+<div class="two-column">
+<section class="card">
+<span class="feature-icon">{{ icon('download') }}</span>
+<h2>Mulai dari template.</h2>
+<p>Gunakan satu sheet, maksimal 500 karyawan dan 5 MB. Format tanggal YYYY-MM-DD, office_id sesuai daftar kantor, password unik minimal 12 karakter.</p>
+<a class="button button-outline" href="{{ url_for('admin.import_template') }}">{{ icon('download') }} Unduh template .xlsx</a>
+<form method="post" enctype="multipart/form-data" class="form-stack import-form" data-confirm="Import semua karyawan dan akun dalam file ini?">{{ csrf() }}<label>File Excel<input type="file" name="file" accept=".xlsx" required>
+</label>
+<button class="button button-primary" type="submit">Validasi & import</button>
+</form>
+<div class="notice">Import bersifat atomik: satu baris bermasalah membatalkan seluruh perubahan. Simpan/hapus file berisi password sesuai kebijakan keamanan perusahaan.</div>
+</section>
+<section class="card">
+<h2>Referensi kantor aktif</h2>
+<dl class="detail-list">
+{% for office in offices %}
+<div>
+<dt>{{ office.name }}</dt>
+<dd>office_id: {{ office.id }}</dd>
+</div>
+{% else %}
+<div>
+<dt>Belum tersedia</dt>
+<dd>
+<a href="{{ url_for('admin.office_form') }}">Tambah kantor</a>
+</dd>
+</div>
+{% endfor %}
+</dl>
+<p class="muted">Kolom: employee_number, name, email, department, job_title, phone, join_date, office_id, password. Formula, macro, dan link eksternal ditolak.</p>
+</section>
+</div>
+{% endblock %}

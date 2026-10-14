@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, badge, empty with context %}
+{% block eyebrow %}MAKE TODAY A GOOD DAY{% endblock %}
+{% block page_title %}Halo, {{ employee.name.split()[0] }}.{% endblock %}
+{% block page_description %}{{ employee.job_title or 'Employee' }} &middot; {{ client.name }}{% endblock %}
+{% block content %}
+<section class="employee-welcome">
+<div>
+<span class="pill pill-light">YOUR DAILY CHECK-IN</span>
+<h2>Siap untuk<br>hari yang baik?</h2>
+<p>{{ server_now|date_id }} &middot; {{ office.name if office else 'Kantor belum ditetapkan' }}</p>
+<a class="button button-mint" href="{{ url_for('employee.attendance') }}">{{ icon('camera') }} {{ 'Lihat absensi hari ini' if attendance and attendance.check_out_at else ('Lanjutkan check-out' if attendance else 'Mulai absensi') }} {{ icon('arrow') }}</a>
+</div>
+<div class="welcome-art" aria-hidden="true">
+<div class="welcome-disc">{{ icon('pin') }}</div>
+<span class="tiny-orbit">
+</span>
+</div>
+</section>
+<div class="employee-stats">
+<article class="card">
+<span class="stat-icon mint">{{ icon('calendar') }}</span>
+<div>
+<strong>{{ stats.total }}</strong>
+<span>Kehadiran bulan ini</span>
+</div>
+</article>
+<article class="card">
+<span class="stat-icon amber">{{ icon('clock') }}</span>
+<div>
+<strong>{{ stats.late }}</strong>
+<span>Terlambat bulan ini</span>
+</div>
+</article>
+</div>
+<div class="two-column">
+<section class="card">
+<div class="section-heading">
+<h2>Hari ini</h2>
+{% if attendance %}{{ badge(attendance.status) }}{% else %}
+<span class="badge badge-pending">Belum check-in</span>
+{% endif %}
+</div>
+<div class="time-pair">
+<div>
+<span class="time-dot">
+</span>
+<p>Check-in</p>
+<strong>{{ attendance.check_in_at|clock if attendance else '--:--' }}</strong>
+<small>WIB</small>
+</div>
+<div>
+<span class="time-dot muted-dot">
+</span>
+<p>Check-out</p>
+<strong>{{ attendance.check_out_at|clock if attendance else '--:--' }}</strong>
+<small>WIB</small>
+</div>
+</div>
+<p class="muted">{{ attendance.office_name if attendance else (office.name if office else 'Hubungi HR untuk penempatan kantor.') }}</p>
+</section>
+<section class="card">
+<div class="section-heading">
+<h2>Jadwal kantor</h2>{{ icon('pin') }}</div>
+{% if office %}
+<dl class="detail-list">
+<div>
+<dt>Lokasi</dt>
+<dd>{{ office.name }}</dd>
+</div>
+<div>
+<dt>Jam kerja</dt>
+<dd>{{ office.start_time|clock }} - {{ office.end_time|clock }} WIB</dd>
+</div>
+<div>
+<dt>Radius absensi</dt>
+<dd>{{ office.radius_m }} meter</dd>
+</div>
+</dl>
+{% else %}
+<div class="notice">Admin HR belum menetapkan kantor Anda.</div>
+{% endif %}
+</section>
+</div>
+<section class="card">
+<div class="section-heading">
+<div>
+<h2>Jejak hari kerja</h2>
+<p>Catatan kehadiran terbaru Anda.</p>
+</div>
+<a class="text-link" href="{{ url_for('employee.history') }}">Semua {{ icon('arrow') }}</a>
+</div>
+{% for record in recent %}
+<div class="history-list-item">
+<span class="history-date">
+<strong>{{ record.work_date.strftime('%d') }}</strong>
+<small>{{ record.work_date.strftime('%b') }}</small>
+</span>
+<div class="list-main">
+<strong>{{ record.office_name }}</strong>
+<small>{{ record.check_in_at|clock }} - {{ record.check_out_at|clock }} WIB</small>
+</div>{{ badge(record.status) }}</div>
+{% else %}{{ empty('Hari pertama Anda dimulai dengan check-in.') }}{% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf with context %}
+{% block page_title %}Profil perusahaan{% endblock %}
+{% block page_description %}Informasi kontak juga tampil pada pemberitahuan privasi karyawan.{% endblock %}
+{% block content %}
+<div class="two-column">
+<section class="card">
+<form method="post" class="form-stack">{{ csrf() }}<label>Nama PT<input name="name" value="{{ client.name }}" maxlength="160" required>
+</label>
+<label>Email HR<input type="email" name="email" value="{{ client.email }}" maxlength="190" required>
+</label>
+<label>Telepon<input name="phone" value="{{ client.phone }}" maxlength="32">
+</label>
+<label>Alamat<textarea name="address" maxlength="500" required>{{ client.address }}</textarea>
+</label>
+<label>Retensi selfie (hari)<input type="number" name="photo_retention_days" min="1" max="365" value="{{ client.photo_retention_days or '' }}" placeholder="Default: {{ config.PHOTO_RETENTION_DAYS }} hari">
+<small>Penghapusan dijalankan melalui job retensi, bukan saat halaman dibuka.</small>
+</label>
+<button class="button button-primary" type="submit">Simpan profil</button>
+</form>
+</section>
+<section class="card">
+<h2>Layanan Anda</h2>
+<dl class="detail-list">
+<div>
+<dt>Kode tenant</dt>
+<dd>{{ client.code }}</dd>
+</div>
+<div>
+<dt>Kapasitas</dt>
+<dd>{{ client.employee_limit }} karyawan aktif</dd>
+</div>
+<div>
+<dt>Mulai</dt>
+<dd>{{ client.service_start|date_id }}</dd>
+</div>
+<div>
+<dt>Berakhir</dt>
+<dd>{{ client.service_end|date_id }}</dd>
+</div>
+</dl>
+<div class="notice">Perubahan kapasitas dan periode subscription dikelola Superadmin Elrise.</div>
+</section>
+</div>
+{% endblock %}

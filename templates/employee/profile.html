@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block page_title %}Ini ruang Anda.{% endblock %}
+{% block page_description %}Informasi pekerjaan, keamanan akun, dan kontrol privasi.{% endblock %}
+{% block content %}
+<div class="two-column">
+<section class="card">
+<div class="profile-heading">
+<span class="avatar avatar-large">{{ employee.name[:1] }}</span>
+<h2>{{ employee.name }}</h2>
+<p>{{ employee.job_title or 'Employee' }} &middot; {{ employee.department or client.name }}</p>
+</div>
+<dl class="detail-list">
+<div>
+<dt>Nomor karyawan</dt>
+<dd>{{ employee.employee_number }}</dd>
+</div>
+<div>
+<dt>Email</dt>
+<dd>{{ user.email }}</dd>
+</div>
+<div>
+<dt>Telepon</dt>
+<dd>{{ employee.phone or '-' }}</dd>
+</div>
+<div>
+<dt>Perusahaan</dt>
+<dd>{{ client.name }}</dd>
+</div>
+<div>
+<dt>Kantor</dt>
+<dd>{{ office.name if office else '-' }}</dd>
+</div>
+<div>
+<dt>Mulai bekerja</dt>
+<dd>{{ employee.join_date|date_id }}</dd>
+</div>
+</dl>
+<p class="muted">Untuk koreksi data pekerjaan, hubungi Admin HR.</p>
+</section>
+<div>
+<section class="card">
+<div class="section-heading">
+<h2>Keamanan akun</h2>{{ icon('lock') }}</div>
+<p>Gunakan password unik. Perubahan password mencabut semua sesi login.</p>
+<a class="button button-outline" href="{{ url_for('auth.password_change') }}">Ubah password</a>
+</section>
+<section class="card">
+<h2>Privasi kehadiran</h2>
+<p>{{ 'Disetujui pada ' ~ (employee.privacy_accepted_at|date_id) ~ ' (versi ' ~ employee.privacy_version ~ ').' if employee.privacy_accepted_at else 'Belum ada persetujuan aktif.' }}</p>
+<a class="text-link" href="{{ url_for('employee.privacy') }}">Baca pemberitahuan {{ icon('arrow') }}</a>
+{% if employee.privacy_accepted_at %}
+<form method="post" action="{{ url_for('employee.withdraw_privacy') }}" class="privacy-withdraw" data-confirm="Tarik persetujuan? Absensi GPS/selfie akan dinonaktifkan. Hubungi HR untuk alternatif absensi dan permohonan terkait data tersimpan.">{{ csrf() }}<button class="button button-outline button-sm" type="submit">Tarik persetujuan</button>
+</form>
+{% endif %}
+</section>
+<form method="post" action="{{ url_for('auth.logout') }}">{{ csrf() }}<button class="button button-danger button-full" type="submit">{{ icon('logout') }} Keluar dari akun</button>
+</form>
+</div>
+</div>
+{% endblock %}

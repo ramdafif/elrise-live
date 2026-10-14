@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, badge with context %}
+{% block page_title %}Hadir, di tempat yang tepat.{% endblock %}
+{% block page_description %}Lokasi akurat. Selfie langsung. Satu langkah yang jelas.{% endblock %}
+{% block content %}
+<section id="attendance-app" data-complete="{{ 'true' if attendance and attendance.check_out_at else 'false' }}" data-action="{{ 'check_out' if attendance else 'check_in' }}" data-max-photo-bytes="{{ config.MAX_PHOTO_BYTES }}">
+<script type="application/json" id="office-data">{{ office_data|tojson }}</script>
+<div class="attendance-clock-card">
+<div>
+<p data-live-date>{{ server_now|date_id }}</p>
+<strong data-live-clock>{{ server_now.strftime('%H:%M:%S') }}</strong>
+<small>Waktu server &middot; Asia/Jakarta (WIB)</small>
+</div>
+{% if attendance %}{{ badge(attendance.status) }}{% else %}
+<span class="badge badge-pending">Belum check-in</span>
+{% endif %}
+</div>
+{% if error %}
+<div class="notice notice-danger" role="alert">{{ error }}</div>
+{% endif %}
+{% if attendance and attendance.check_out_at %}
+<div class="notice notice-success">{{ icon('check') }} Absensi hari ini lengkap. Check-in {{ attendance.check_in_at|clock }}, check-out {{ attendance.check_out_at|clock }} WIB. Sampai jumpa di hari kerja berikutnya.</div>
+{% endif %}
+<div class="attendance-layout">
+<div class="card camera-card">
+<div class="section-heading">
+<div>
+<h2>Selfie kehadiran</h2>
+<p>Kamera depan &middot; tanpa upload galeri</p>
+</div>{{ icon('camera') }}</div>
+<div class="camera-frame">
+<video id="selfie-video" autoplay playsinline muted hidden>
+</video>
+<img id="selfie-preview" alt="Preview selfie yang baru diambil" hidden>
+<div class="camera-placeholder" id="camera-placeholder">{{ icon('camera') }}<strong>Satu selfie untuk hadir.</strong>
+<p>Izinkan akses kamera saat Anda siap.<br>Foto tidak dikirim sebelum tombol absensi ditekan.</p>
+</div>
+<span class="camera-label" id="camera-label">KAMERA BELUM AKTIF</span>
+</div>
+<canvas id="selfie-canvas" hidden>
+</canvas>
+<div class="camera-actions">
+<button class="button button-outline" type="button" id="start-attendance" {% if not office or (attendance and attendance.check_out_at) %}disabled{% endif %}>{{ icon('pin') }} Aktifkan GPS & kamera</button>
+<button class="button button-primary" type="button" id="capture-selfie" disabled>{{ icon('camera') }} Ambil selfie</button>
+</div>
+<div id="attendance-message" class="notice" role="status" aria-live="polite" hidden>
+</div>
+</div>
+<div class="attendance-side">
+<section class="card location-card">
+<div class="section-heading">
+<h2>Lokasi Anda</h2>
+<span class="feature-icon small">{{ icon('pin') }}</span>
+</div>
+<strong>{{ office.name if office else 'Kantor belum tersedia' }}</strong>
+<p class="muted">{{ office.address if office else 'Hubungi Admin HR.' }}</p>
+<dl class="detail-list">
+<div>
+<dt>Radius kantor</dt>
+<dd>{{ office.radius_m if office else '-' }} m</dd>
+</div>
+<div>
+<dt>Akurasi GPS</dt>
+<dd id="gps-accuracy">Belum diperiksa</dd>
+</div>
+<div>
+<dt>Jarak ke kantor</dt>
+<dd id="gps-distance">Belum diperiksa</dd>
+</div>
+<div>
+<dt>Koordinat</dt>
+<dd id="gps-coordinates">Belum tersedia</dd>
+</div>
+</dl>
+<div id="geofence-status" class="geofence-status">{{ icon('pin') }} Menunggu izin lokasi</div>
+<button class="text-link" id="refresh-location" type="button" {% if not office or (attendance and attendance.check_out_at) %}disabled{% endif %}>Perbarui lokasi</button>
+<small class="location-note">Akurasi maksimal {{ office.max_accuracy_m if office else '-' }} m. Lokasi lama tidak diterima.</small>
+</section>
+<section class="card attendance-submit-card">
+<p class="eyebrow">{{ 'SELESAIKAN HARI ANDA' if attendance else 'MULAI HARI ANDA' }}</p>
+<h2>{{ 'Check-out' if attendance else 'Check-in' }}</h2>
+<p>Pastikan GPS memenuhi aturan dan selfie sudah diambil.</p>
+<button class="button button-primary button-full" id="submit-attendance" type="button" disabled>{{ icon('check') }} {{ 'Check-out sekarang' if attendance else 'Check-in sekarang' }}</button>
+<small>Waktu resmi ditentukan server, bukan perangkat.</small>
+</section>
+</div>
+</div>
+<p class="privacy-footnote">{{ icon('lock') }} Foto bersifat privat. Browser tidak menjamin foto benar-benar live atau GPS bebas spoofing. Perlu bantuan? Hubungi HR {{ client.email }}.</p>
+</section>
+{% endblock %}

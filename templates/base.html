@@ -1,0 +1,188 @@
+{% from 'macros.html' import icon, csrf with context %}
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="server-time" content="{{ server_now.isoformat() }}+07:00">
+<meta name="theme-color" content="#102f40">
+<title>
+{% block title %}Elrise &middot; People, in place{% endblock %}
+</title>
+<link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script defer src="{{ url_for('static', filename='js/app.js') }}">
+</script>
+</head>
+<body class="{% if user %}app-body role-{{ user.role }}{% else %}auth-body{% endif %}">
+<svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<symbol id="i-home" viewBox="0 0 24 24">
+<path d="m3 10 9-7 9 7v10H3zM9 20v-7h6v7"/>
+</symbol>
+<symbol id="i-users" viewBox="0 0 24 24">
+<circle cx="9" cy="8" r="3"/>
+<path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-4-5"/>
+</symbol>
+<symbol id="i-building" viewBox="0 0 24 24">
+<path d="M4 21V4h10v17M14 9h6v12M2 21h20M8 8h2M8 12h2M8 16h2M17 13h1M17 17h1"/>
+</symbol>
+<symbol id="i-pin" viewBox="0 0 24 24">
+<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/>
+<circle cx="12" cy="10" r="3"/>
+</symbol>
+<symbol id="i-clock" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="9"/>
+<path d="M12 6v6l4 2"/>
+</symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24">
+<rect x="3" y="5" width="18" height="16" rx="3"/>
+<path d="M7 3v4M17 3v4M3 11h18M8 16h1M15 16h1"/>
+</symbol>
+<symbol id="i-folder" viewBox="0 0 24 24">
+<path d="M3 7V4h7l3 3h8v13H3z"/>
+</symbol>
+<symbol id="i-settings" viewBox="0 0 24 24">
+<path d="M3 6h18M3 12h18M3 18h18M8 3v6M16 9v6M8 15v6"/>
+</symbol>
+<symbol id="i-lock" viewBox="0 0 24 24">
+<rect x="4" y="10" width="16" height="11" rx="3"/>
+<path d="M7 10V7a5 5 0 0 1 10 0v3M12 14v3"/>
+</symbol>
+<symbol id="i-logout" viewBox="0 0 24 24">
+<path d="M9 4H3v16h6M9 12h12m-4-4 4 4-4 4"/>
+</symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24">
+<path d="M4 12h16m-6-6 6 6-6 6"/>
+</symbol>
+<symbol id="i-plus" viewBox="0 0 24 24">
+<path d="M12 4v16M4 12h16"/>
+</symbol>
+<symbol id="i-camera" viewBox="0 0 24 24">
+<path d="M3 7h4l2-3h6l2 3h4v14H3z"/>
+<circle cx="12" cy="13" r="4"/>
+</symbol>
+<symbol id="i-check" viewBox="0 0 24 24">
+<path d="m5 12 4 4L19 6"/>
+</symbol>
+<symbol id="i-download" viewBox="0 0 24 24">
+<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>
+</symbol>
+<symbol id="i-menu" viewBox="0 0 24 24">
+<path d="M4 6h16M4 12h16M4 18h16"/>
+</symbol>
+</defs>
+</svg>
+{% if user %}
+{% if user.role == 'superadmin' %}
+{% set navigation = [('superadmin.dashboard','home','Ringkasan'),('superadmin.clients','building','Perusahaan'),('auth.password_change','lock','Keamanan akun')] %}
+{% elif user.role == 'admin' %}
+{% set navigation = [('admin.dashboard','home','Ringkasan'),('admin.employees','users','Karyawan'),('admin.offices','pin','Kantor & geofence'),('admin.attendance','clock','Absensi & laporan'),('admin.leaves','calendar','Izin & cuti'),('admin.company','building','Profil perusahaan'),('auth.password_change','lock','Keamanan akun')] %}
+{% else %}
+{% set navigation = [('employee.dashboard','home','Beranda'),('employee.attendance','camera','Absensi'),('employee.history','clock','Riwayat'),('employee.leaves','calendar','Izin & cuti'),('employee.profile','users','Profil')] %}
+{% endif %}
+<button class="sidebar-overlay" id="sidebar-overlay" type="button" aria-label="Tutup navigasi" hidden>
+</button>
+<aside class="sidebar" id="sidebar">
+<a class="brand" href="{{ url_for(navigation[0][0]) }}" aria-label="Elrise - Beranda">
+<img class="brand-symbol" data-brand-logo src="{{ url_for('static', filename='img/elrise-symbol-web.png') }}" alt="" width="256" height="286">
+<span class="brand-copy">
+<img class="brand-wordmark" data-brand-logo src="{{ url_for('static', filename='img/elrise-wordmark-web.png') }}" alt="Elrise" width="552" height="154">
+<small>by Elkyno Technology</small>
+</span>
+</a>
+<div class="tenant-switch">
+<span class="tenant-icon">{{ icon('building') }}</span>
+<div>
+<strong>{{ client.name if client else 'Elrise Control Center' }}</strong>
+<span>{{ 'Employee workspace' if user.role == 'employee' else ('Company workspace' if client else 'Platform workspace') }}</span>
+</div>
+</div>
+<p class="nav-label">WORKSPACE</p>
+<nav class="side-nav" aria-label="Navigasi utama">
+{% for endpoint, image, label in navigation %}
+<a href="{{ url_for(endpoint) }}" class="nav-item {% if request.endpoint == endpoint or (endpoint == 'admin.employees' and request.endpoint in ['admin.employee_form','admin.import_employees']) or (endpoint == 'admin.offices' and request.endpoint == 'admin.office_form') or (endpoint == 'superadmin.clients' and request.endpoint in ['superadmin.client_form','superadmin.client_detail']) %}active{% endif %}">{{ icon(image) }}<span>{{ label }}</span>
+</a>
+{% endfor %}
+</nav>
+<div class="sidebar-footer">
+<div class="system-status">
+<span>
+</span>People, in place.</div>
+<div class="account">
+<span class="avatar">{{ user.name[:1]|upper }}</span>
+<div>
+<strong>{{ user.name }}</strong>
+<small>{{ {'superadmin':'Superadmin','admin':'Admin PT','employee':'Employee'}[user.role] }}</small>
+</div>
+</div>
+<form method="post" action="{{ url_for('auth.logout') }}">{{ csrf() }}<button class="logout" type="submit">{{ icon('logout') }} Keluar dari akun</button>
+</form>
+</div>
+</aside>
+<div class="workspace">
+<header class="topbar">
+<div class="topbar-left">
+<button class="icon-button mobile-menu" id="sidebar-toggle" type="button" aria-label="Buka navigasi" aria-expanded="false">{{ icon('menu') }}</button>
+{% if user.role == 'employee' %}
+<a class="mobile-brand" href="{{ url_for('employee.dashboard') }}" aria-label="Elrise - Beranda">
+<img class="brand-symbol" data-brand-logo src="{{ url_for('static', filename='img/elrise-symbol-web.png') }}" alt="" width="256" height="286">
+<img class="brand-wordmark" data-brand-logo src="{{ url_for('static', filename='img/elrise-wordmark-web.png') }}" alt="Elrise" width="552" height="154">
+</a>
+{% endif %}
+<span class="breadcrumb">Workspace <span>/</span> {{ 'Platform' if not client else client.code }}</span>
+</div>
+<div class="topbar-right">
+<span class="date-chip">{{ icon('calendar') }} {{ server_now|date_id }}</span>
+<a class="avatar avatar-light" href="{{ url_for('employee.profile' if user.role == 'employee' else 'auth.password_change') }}" aria-label="Profil dan keamanan akun">{{ user.name[:1]|upper }}</a>
+</div>
+</header>
+<main class="main-content" id="main-content">
+<div class="page-heading">
+<div>
+<p class="eyebrow">
+{% block eyebrow %}ELRISE WORKSPACE{% endblock %}
+</p>
+<h1>
+{% block page_title %}Workspace{% endblock %}
+</h1>
+<p class="page-description">
+{% block page_description %}Kelola hari kerja dengan lebih baik.{% endblock %}
+</p>
+</div>
+<div class="heading-actions">
+{% block actions %}
+{% endblock %}
+</div>
+</div>
+{% else %}
+<main class="public-main" id="main-content">
+{% endif %}
+{% block content %}
+{% endblock %}
+</main>
+{% if user %}
+<footer class="workspace-footer">
+<span>Elrise HRIS &middot; Elkyno Technology</span>
+<span>{{ icon('lock') }} Data perusahaan terisolasi</span>
+</footer>
+</div>
+{% if user.role == 'employee' %}
+<nav class="bottom-nav" aria-label="Navigasi mobile">
+{% for endpoint, image, label in navigation %}
+<a class="{% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}">{{ icon(image) }}<span>{{ label }}</span>
+</a>
+{% endfor %}
+</nav>
+{% endif %}
+{% endif %}
+<div class="toast-stack" aria-live="polite" id="toast-stack">
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<div class="toast toast-{{ category }}" role="status">{{ icon('check' if category == 'success' else 'lock') }}<span>{{ message }}</span>
+<button type="button" class="toast-close" aria-label="Tutup notifikasi">&times;</button>
+</div>
+{% endfor %}
+</div>
+</body>
+</html>

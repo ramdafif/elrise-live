@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon %}
+{% block page_title %}Permintaan tidak dapat diproses{% endblock %}
+{% block content %}
+<section class="error-card card">
+<span class="error-number">{{ status }}</span>
+<h2>Ada yang perlu diperiksa.</h2>
+<p>{{ message }}</p>
+<div class="form-actions">
+<button class="button button-primary" type="button" data-go-back>Kembali</button>
+<a class="button button-outline" href="{{ url_for('auth.index') }}">Ke halaman utama</a>
+</div>
+</section>
+{% endblock %}

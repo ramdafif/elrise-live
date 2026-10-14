@@ -1,0 +1,30 @@
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+{% macro icon(name, class_name='') -%}
+<svg class="icon {{ class_name }}" aria-hidden="true">
+<use href="#i-{{ name }}">
+</use>
+</svg>
+{%- endmacro %}
+{% macro badge(status) -%}
+<span class="badge badge-{{ status }}">{{ status|label }}</span>
+{%- endmacro %}
+{% macro empty(message='Belum ada data untuk ditampilkan.') -%}
+<div class="empty-state">{{ icon('folder') }}<strong>{{ message }}</strong>
+<span>Data akan tampil setelah aktivitas pertama tersimpan.</span>
+</div>
+{%- endmacro %}
+{% macro pagination(page, total, limit) -%}
+<div class="pagination">
+<span>{{ total }} data &middot; Halaman {{ page }} / {{ [1, ((total + limit - 1) // limit)]|max }}</span>
+<div>
+{% if page > 1 %}
+<a class="button button-outline button-sm" href="{{ page_link(page - 1) }}">Sebelumnya</a>
+{% endif %}
+{% if page * limit < total %}
+<a class="button button-outline button-sm" href="{{ page_link(page + 1) }}">Berikutnya</a>
+{% endif %}
+</div>
+</div>
+{%- endmacro %}

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, empty, pagination with context %}
+{% block page_title %}Orang-orang di balik tim.{% endblock %}
+{% block page_description %}Data pekerjaan dan akun login terhubung, dalam satu daftar.{% endblock %}
+{% block actions %}
+<a href="{{ url_for('admin.import_employees') }}" class="button button-outline">{{ icon('download') }} Import Excel</a>
+<a href="{{ url_for('admin.employee_form') }}" class="button button-primary">{{ icon('plus') }} Karyawan</a>
+{% endblock %}
+{% block content %}
+<section class="card">
+<form class="filter-bar" method="get">
+<label class="search-label">Cari karyawan<input type="search" name="q" value="{{ search }}" maxlength="100" placeholder="Nama, nomor, atau email">
+</label>
+<label>Status<select name="active">
+<option value="">Semua status</option value="1" {% if active == '1' %}selected{% endif %}>Aktif</option>
+<option value="0" {% if active == '0' %}selected{% endif %}>Nonaktif</option>
+</select>
+</label>
+<button class="button button-outline" type="submit">Terapkan</button>
+</form>
+{% if employees %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Karyawan</th>
+<th>Nomor</th>
+<th>Departemen / jabatan</th>
+<th>Kantor</th>
+<th>Status</th>
+<th>
+</th>
+</tr>
+</thead>
+<tbody>
+{% for employee in employees %}
+<tr>
+<td>
+<div class="cell-person">
+<span class="avatar avatar-light">{{ employee.name[:1] }}</span>
+<div>
+<strong>{{ employee.name }}</strong>
+<small>{{ employee.email }}</small>
+</div>
+</div>
+</td>
+<td>{{ employee.employee_number }}</td>
+<td>{{ employee.department or '-' }}<small class="cell-subtitle">{{ employee.job_title or '-' }}</small>
+</td>
+<td>{{ employee.office_name or '-' }}</td>
+<td>
+<span class="badge badge-{{ 'approved' if employee.is_active else 'rejected' }}">{{ 'Aktif' if employee.is_active else 'Nonaktif' }}</span>
+</td>
+<td>
+<a class="button button-outline button-sm" href="{{ url_for('admin.employee_form', employee_id=employee.id) }}">Edit & akun</a>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Tidak ada karyawan yang ditemukan.') }}{% endif %}{{ pagination(page,total,limit) }}</section>
+{% endblock %}

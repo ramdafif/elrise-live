@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, badge, empty with context %}
+{% block eyebrow %}YOUR TEAM, AT A GLANCE{% endblock %}
+{% block page_title %}Selamat {{ 'pagi' if server_now.hour < 11 else ('siang' if server_now.hour < 15 else ('sore' if server_now.hour < 18 else 'malam')) }}, {{ user.name.split()[0] }}.{% endblock %}
+{% block page_description %}Inilah kabar tim {{ client.name }} hari ini.{% endblock %}
+{% block actions %}
+<a href="{{ url_for('admin.employee_form') }}" class="button button-primary">{{ icon('plus') }} Tambah karyawan</a>
+{% endblock %}
+{% block content %}
+<div class="stats-grid">
+<article class="stat-card">
+<span class="stat-icon">{{ icon('users') }}</span>
+<p>Karyawan aktif</p>
+<strong>{{ stats.employees }}</strong>
+<span>Dari kapasitas {{ client.employee_limit }}</span>
+</article>
+<article class="stat-card">
+<span class="stat-icon mint">{{ icon('check') }}</span>
+<p>Hadir hari ini</p>
+<strong>{{ stats.present }}</strong>
+<span>Termasuk {{ stats.late }} terlambat</span>
+</article>
+<article class="stat-card">
+<span class="stat-icon amber">{{ icon('clock') }}</span>
+<p>Belum hadir</p>
+<strong>{{ stats.absent }}</strong>
+<span>Pada jadwal kerja hari ini</span>
+</article>
+<article class="stat-card">
+<span class="stat-icon mint">{{ icon('calendar') }}</span>
+<p>Izin & cuti</p>
+<strong>{{ stats.leave }}</strong>
+<span>Pengajuan disetujui hari ini</span>
+</article>
+</div>
+<div class="dashboard-columns">
+<section class="card">
+<div class="section-heading">
+<div>
+<h2>Ritme kehadiran</h2>
+<p>Check-in 7 hari terakhir.</p>
+</div>
+<span class="pill">7 HARI</span>
+</div>
+<div class="bar-chart">
+{% for entry in week %}
+<div class="bar-column">
+<span class="bar-value">{{ entry.total }}</span>
+<div class="bar-track">
+<div class="chart-bar" data-bar-height="{{ (entry.total * 100 / [1,stats.employees]|max)|round }}" title="{{ entry.total }} hadir, {{ entry.late }} terlambat">
+</div>
+</div>
+<span>{{ ['Sen','Sel','Rab','Kam','Jum','Sab','Min'][entry.date.isoweekday()-1] }}</span>
+</div>
+{% endfor %}
+</div>
+<div class="chart-legend">
+<span>
+<i>
+</i>Karyawan check-in</span>
+<span>Semua kantor &middot; WIB</span>
+</div>
+</section>
+<section class="card attention-card">
+<span class="feature-icon amber">{{ icon('calendar') }}</span>
+<p class="eyebrow">NEEDS YOUR ATTENTION</p>
+<h2>{{ pending }} pengajuan<br>menunggu keputusan.</h2>
+<p>Tindak lanjuti izin dan cuti agar tim bisa merencanakan harinya.</p>
+<a href="{{ url_for('admin.leaves') }}" class="button button-primary">Tinjau pengajuan {{ icon('arrow') }}</a>
+<div class="subscription-note">Layanan aktif sampai <strong>{{ client.service_end|date_id }}</strong>
+</div>
+</section>
+</div>
+<section class="card">
+<div class="section-heading">
+<div>
+<h2>Kehadiran hari ini</h2>
+<p>Data nyata berdasarkan jadwal dan kantor karyawan.</p>
+</div>
+<a class="text-link" href="{{ url_for('admin.attendance', start=server_now.date(), end=server_now.date()) }}">Lihat laporan {{ icon('arrow') }}</a>
+</div>
+{% if rows %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Karyawan</th>
+<th>Kantor</th>
+<th>Check-in</th>
+<th>Check-out</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+{% for row in rows %}
+<tr>
+<td>
+<div class="cell-person">
+<span class="avatar avatar-light">{{ row.employee.name[:1] }}</span>
+<div>
+<strong>{{ row.employee.name }}</strong>
+<small>{{ row.employee.job_title or row.employee.employee_number }}</small>
+</div>
+</div>
+</td>
+<td>{{ row.attendance.office_name if row.attendance else row.employee.assigned_office or '-' }}</td>
+<td>{{ row.attendance.check_in_at|clock if row.attendance else '--:--' }}</td>
+<td>{{ row.attendance.check_out_at|clock if row.attendance else '--:--' }}</td>
+<td>{{ badge(row.status) }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Belum ada karyawan. Mulai dengan menambahkan kantor dan anggota tim.') }}{% endif %}
+</section>
+{% endblock %}

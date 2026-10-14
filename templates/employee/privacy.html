@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block page_title %}Data Anda, dengan jelas.{% endblock %}
+{% block page_description %}Baca pemberitahuan ini sebelum absensi GPS dan selfie pertama Anda.{% endblock %}
+{% block content %}
+<section class="card privacy-card">
+<span class="feature-icon">{{ icon('lock') }}</span>
+<h2>Pemberitahuan privasi kehadiran</h2>
+<p class="muted">Versi {{ config.PRIVACY_VERSION }} &middot; {{ client.name }}</p>
+<div class="policy-section">
+<h3>Apa yang diproses?</h3>
+<p>Identitas akun/karyawan, koordinat GPS, akurasi, jarak ke kantor, waktu server dan waktu perangkat yang dilaporkan, serta selfie pada check-in/check-out. Aplikasi tidak melakukan pengenalan wajah.</p>
+</div>
+<div class="policy-section">
+<h3>Untuk apa dan siapa yang dapat melihat?</h3>
+<p>Untuk mencatat dan memeriksa kehadiran. Foto hanya dapat diakses oleh Anda dan Admin PT perusahaan Anda. Superadmin melihat ringkasan, bukan foto. Perusahaan mengelola aturan HR; pembagian tanggung jawab perusahaan dan Elkyno Technology harus ditetapkan melalui kebijakan dan perjanjian yang sesuai.</p>
+</div>
+<div class="policy-section">
+<h3>Berapa lama disimpan?</h3>
+<p>Selfie: {{ client.photo_retention_days or config.PHOTO_RETENTION_DAYS }} hari. Catatan absensi: {{ config.ATTENDANCE_RETENTION_DAYS }} hari. Pengajuan izin/cuti: {{ config.LEAVE_RETENTION_DAYS }} hari setelah periode pengajuan berakhir. Penghapusan dilakukan oleh job retensi terjadwal; backup harus mengikuti kebijakan perusahaan.</p>
+</div>
+<div class="policy-section">
+<h3>Kontrol dan permohonan Anda</h3>
+<p>GPS/kamera hanya diaktifkan saat Anda memulai proses. Anda dapat menarik persetujuan dari Profil; absensi GPS/selfie kemudian dinonaktifkan. Hubungi HR di <strong>{{ client.email }}</strong> atau kontak platform <strong>{{ config.PRIVACY_CONTACT or 'Admin HR' }}</strong> untuk akses, koreksi, penghapusan, keberatan, atau alternatif pencatatan kehadiran. Permohonan dan kewajiban retensi perlu dinilai sebelum penghapusan.</p>
+</div>
+<div class="notice">Persetujuan ini bukan jaminan pemenuhan seluruh UU No. 27 Tahun 2022. Perusahaan dan penyedia layanan tetap perlu menilai dasar pemrosesan, transparansi, keamanan, hak subjek data, retensi, dan prosedur insiden. GPS/selfie browser juga bukan bukti anti-spoofing atau liveness.</div>
+<form method="post" class="form-stack">{{ csrf() }}<label class="checkbox-label consent-label">
+<input name="consent" value="1" type="checkbox" required>Saya telah membaca pemberitahuan ini dan menyetujui pemrosesan lokasi serta selfie untuk pencatatan kehadiran.</label>
+<button class="button button-primary" type="submit">Setuju & lanjut ke absensi {{ icon('arrow') }}</button>
+</form>
+</section>
+{% endblock %}

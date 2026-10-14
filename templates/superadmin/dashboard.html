@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, empty with context %}
+{% block eyebrow %}PLATFORM OVERVIEW{% endblock %}
+{% block page_title %}Ruang untuk bertumbuh.{% endblock %}
+{% block page_description %}Seluruh perusahaan, dalam satu pandangan yang jelas.{% endblock %}
+{% block actions %}
+<a href="{{ url_for('superadmin.client_form') }}" class="button button-primary">{{ icon('plus') }} Tambah perusahaan</a>
+{% endblock %}
+{% block content %}
+<section class="hero-banner">
+<div>
+<span class="pill pill-light">ELRISE CONTROL CENTER</span>
+<h2>Tim yang hebat dimulai<br>dengan pengelolaan yang baik.</h2>
+<p>Anda mengelola {{ stats.total }} perusahaan dan {{ stats.employees }} karyawan aktif.</p>
+</div>
+<div class="hero-orbit" aria-hidden="true">{{ icon('building') }}<span>People, in place.</span>
+</div>
+</section>
+<div class="stats-grid">
+<article class="stat-card">
+<span class="stat-icon">{{ icon('building') }}</span>
+<p>Perusahaan aktif</p>
+<strong>{{ stats.active }}<small>/ {{ stats.total }}</small>
+</strong>
+<span>Layanan berlaku hari ini</span>
+</article>
+<article class="stat-card">
+<span class="stat-icon mint">{{ icon('users') }}</span>
+<p>Karyawan aktif</p>
+<strong>{{ stats.employees }}</strong>
+<span>Di seluruh tenant</span>
+</article>
+<article class="stat-card">
+<span class="stat-icon amber">{{ icon('clock') }}</span>
+<p>Absensi hari ini</p>
+<strong>{{ stats.attendance }}</strong>
+<span>Check-in tersimpan</span>
+</article>
+<article class="stat-card">
+<span class="stat-icon">{{ icon('lock') }}</span>
+<p>Ruang kerja terpisah</p>
+<strong>{{ stats.total }}</strong>
+<span>Isolasi data per perusahaan</span>
+</article>
+</div>
+<section class="card">
+<div class="section-heading">
+<div>
+<h2>Perusahaan terbaru</h2>
+<p>Ringkasan penggunaan dan masa layanan.</p>
+</div>
+<a class="text-link" href="{{ url_for('superadmin.clients') }}">Semua perusahaan {{ icon('arrow') }}</a>
+</div>
+{% if companies %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Perusahaan</th>
+<th>Karyawan</th>
+<th>Hadir hari ini</th>
+<th>Masa layanan</th>
+<th>Status</th>
+<th>
+</th>
+</tr>
+</thead>
+<tbody>
+{% for company in companies %}
+<tr>
+<td>
+<div class="cell-person">
+<span class="avatar avatar-light">{{ company.name[:1] }}</span>
+<div>
+<strong>{{ company.name }}</strong>
+<small>{{ company.code }}</small>
+</div>
+</div>
+</td>
+<td>{{ company.employee_count }} / {{ company.employee_limit }}</td>
+<td>{{ company.attendance_count }}</td>
+<td>{{ company.service_end|date_id }}</td>
+<td>
+<span class="badge badge-{{ 'approved' if company.is_active and company.service_start <= server_now.date() <= company.service_end else 'pending' }}">{{ 'Aktif' if company.is_active and company.service_start <= server_now.date() <= company.service_end else 'Belum aktif / berakhir' }}</span>
+</td>
+<td>
+<a class="text-link" href="{{ url_for('superadmin.client_detail', client_id=company.id) }}">Kelola {{ icon('arrow') }}</a>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Mulai dengan perusahaan pertama Anda.') }}{% endif %}
+</section>
+{% endblock %}

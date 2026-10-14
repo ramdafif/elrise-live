@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, badge, empty, pagination with context %}
+{% block page_title %}Kehadiran yang transparan.{% endblock %}
+{% block page_description %}Periksa jam, lokasi, selfie, dan karyawan yang belum hadir.{% endblock %}
+{% block actions %}
+<a class="button button-primary" href="{{ url_for('admin.export_attendance', **request.args.to_dict()) }}">{{ icon('download') }} Export Excel</a>
+{% endblock %}
+{% block content %}
+<section class="card">
+<form class="filter-bar filter-wrap" method="get">
+<label>Dari<input name="start" type="date" value="{{ start }}" required>
+</label>
+<label>Sampai<input name="end" type="date" value="{{ end }}" max="{{ server_now.date() }}" required>
+</label>
+<label>Kantor<select name="office_id">
+<option value="">Semua kantor</option>
+{% for office in offices %}
+<option value="{{ office.id }}" {% if request.args.get('office_id') == office.id|string %}selected{% endif %}>{{ office.name }}</option>
+{% endfor %}
+</select>
+</label>
+<label>Status<select name="status">
+<option value="">Semua status</option>
+{% for value in ['present','late','absent','leave','off'] %}
+<option value="{{ value }}" {% if request.args.get('status') == value %}selected{% endif %}>{{ value|label }}</option>
+{% endfor %}
+</select>
+</label>
+<label class="search-label">Karyawan<input name="q" type="search" maxlength="100" value="{{ request.args.get('q','') }}" placeholder="Nama / nomor">
+</label>
+<button class="button button-outline" type="submit">Terapkan</button>
+</form>
+{% if rows %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Tanggal</th>
+<th>Karyawan</th>
+<th>Kantor</th>
+<th>Masuk WIB</th>
+<th>Pulang WIB</th>
+<th>Status</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+{% for row in rows %}
+<tr>
+<td>{{ row.date|date_id }}</td>
+<td>
+<strong>{{ row.employee.name }}</strong>
+<small class="cell-subtitle">{{ row.employee.employee_number }}</small>
+</td>
+<td>{{ row.attendance.office_name if row.attendance else row.employee.assigned_office or '-' }}</td>
+<td>{{ row.attendance.check_in_at|clock if row.attendance else '--:--' }}</td>
+<td>{{ row.attendance.check_out_at|clock if row.attendance else '--:--' }}</td>
+<td>{{ badge(row.status) }}{% if row.attendance and row.attendance.late_minutes %}
+<small class="cell-subtitle">{{ row.attendance.late_minutes }} menit</small>
+{% endif %}
+</td>
+<td>
+{% if row.attendance %}
+<a class="button button-outline button-sm" href="{{ url_for('admin.attendance_detail',attendance_id=row.attendance.id) }}">Foto & GPS</a>
+{% else %}
+<span class="muted">-</span>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Tidak ada hasil untuk filter ini.') }}{% endif %}{{ pagination(page,total,limit) }}<p class="table-footnote">Belum hadir dihitung dari roster aktif dan hari kerja kantor, bukan absensi buatan. Libur nasional dan shift lintas hari belum didukung.</p>
+</section>
+{% endblock %}

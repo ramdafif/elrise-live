@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon, badge, empty, pagination with context %}
+{% block page_title %}Ruang untuk jeda.{% endblock %}
+{% block page_description %}Ajukan izin, cuti, atau sakit. HR akan meninjau permintaan Anda.{% endblock %}
+{% block actions %}
+<button class="button button-primary" type="button" data-dialog="new-leave">{{ icon('plus') }} Buat pengajuan</button>
+{% endblock %}
+{% block content %}
+<section class="card">
+{% for leave in leaves %}
+<article class="leave-entry">
+<div class="section-heading">
+<div>
+<h3>{{ leave.kind|title }}</h3>
+<p>{{ leave.start_date|date_id }} - {{ leave.end_date|date_id }}</p>
+</div>{{ badge(leave.status) }}</div>
+<p class="preserve-lines">{{ leave.reason }}</p>
+{% if leave.admin_note %}
+<div class="notice">Catatan HR: {{ leave.admin_note }}</div>
+{% endif %}
+{% if leave.status == 'pending' %}
+<form method="post" action="{{ url_for('employee.cancel_leave',leave_id=leave.id) }}" data-confirm="Batalkan pengajuan ini?">{{ csrf() }}<button class="button button-outline button-sm" type="submit">Batalkan pengajuan</button>
+</form>
+{% endif %}
+</article>
+{% else %}{{ empty('Belum ada pengajuan izin atau cuti.') }}{% endfor %}{{ pagination(page,total,limit) }}</section>
+<dialog id="new-leave">
+<div class="dialog-heading">
+<h2>Pengajuan baru</h2>
+<button class="dialog-close" type="button" data-close-dialog aria-label="Tutup">&times;</button>
+</div>
+<form method="post" class="form-stack">{{ csrf() }}<label>Jenis<select name="kind" required>
+<option value="izin">Izin</option>
+<option value="cuti">Cuti</option>
+<option value="sakit">Sakit</option>
+</select>
+</label>
+<div class="form-grid">
+<label>Tanggal mulai<input name="start_date" type="date" min="{{ server_now.date() }}" value="{{ server_now.date() }}" required>
+</label>
+<label>Tanggal akhir<input name="end_date" type="date" min="{{ server_now.date() }}" value="{{ server_now.date() }}" required>
+</label>
+</div>
+<label>Alasan<textarea name="reason" maxlength="1000" required>
+</textarea>
+</label>
+<p class="muted">Maksimal 90 hari. Pengajuan yang tumpang tindih dengan pengajuan lain atau absensi ditolak.</p>
+<button class="button button-primary" type="submit">Kirim ke HR {{ icon('arrow') }}</button>
+</form>
+</dialog>
+{% endblock %}

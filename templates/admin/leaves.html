@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, badge, empty, pagination with context %}
+{% block page_title %}Ruang untuk jeda.{% endblock %}
+{% block page_description %}Tinjau izin, sakit, dan cuti anggota tim Anda.{% endblock %}
+{% block content %}
+<section class="card">
+<form class="filter-bar" method="get">
+<label>Status<select name="status">
+<option value="" {% if not status %}selected{% endif %}>Semua</option>
+{% for value in ['pending','approved','rejected','canceled'] %}
+<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|label }}</option>
+{% endfor %}
+</select>
+</label>
+<button class="button button-outline" type="submit">Terapkan</button>
+</form>
+{% if leaves %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Karyawan</th>
+<th>Jenis & periode</th>
+<th>Alasan</th>
+<th>Status</th>
+<th>Tindakan</th>
+</tr>
+</thead>
+<tbody>
+{% for leave in leaves %}
+<tr>
+<td>
+<strong>{{ leave.name }}</strong>
+<small class="cell-subtitle">{{ leave.employee_number }}</small>
+</td>
+<td>{{ leave.kind|title }}<small class="cell-subtitle">{{ leave.start_date|date_id }} - {{ leave.end_date|date_id }}</small>
+</td>
+<td class="reason-cell">{{ leave.reason }}{% if leave.admin_note %}
+<small class="cell-subtitle">HR: {{ leave.admin_note }}</small>
+{% endif %}
+</td>
+<td>{{ badge(leave.status) }}</td>
+<td>
+{% if leave.status == 'pending' %}
+<button type="button" class="button button-primary button-sm" data-dialog="review-{{ leave.id }}">Tinjau</button>
+{% else %}
+<span class="muted">{{ leave.reviewed_at|date_id }}</span>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% for leave in leaves %}
+{% if leave.status == 'pending' %}
+<dialog id="review-{{ leave.id }}">
+<div class="dialog-heading">
+<h2>Tinjau pengajuan</h2>
+<button type="button" class="dialog-close" data-close-dialog aria-label="Tutup">&times;</button>
+</div>
+<p>
+<strong>{{ leave.name }}</strong> &middot; {{ leave.kind|title }}<br>{{ leave.start_date|date_id }} - {{ leave.end_date|date_id }}</p>
+<div class="notice preserve-lines">{{ leave.reason }}</div>
+<form method="post" action="{{ url_for('admin.review_leave',leave_id=leave.id) }}" class="form-stack" data-confirm="Simpan keputusan ini? Keputusan tidak dapat diubah di versi pertama.">{{ csrf() }}<label>Catatan HR<textarea name="admin_note" maxlength="500">
+</textarea>
+</label>
+<div class="form-actions">
+<button type="submit" class="button button-primary" name="status" value="approved">Setujui</button>
+<button type="submit" class="button button-danger" name="status" value="rejected">Tolak</button>
+</div>
+</form>
+</dialog>
+{% endif %}
+{% endfor %}
+{% else %}{{ empty('Tidak ada pengajuan dengan status ini.') }}{% endif %}{{ pagination(page,total,limit) }}</section>
+{% endblock %}

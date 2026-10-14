@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import badge, icon with context %}
+{% block page_title %}{{ attendance.name }}{% endblock %}
+{% block page_description %}{{ attendance.employee_number }} &middot; {{ attendance.work_date|date_id }} &middot; {{ attendance.office_name }}{% endblock %}
+{% block actions %}{{ badge(attendance.status) }}<a class="button button-outline" href="{{ url_for('admin.attendance',start=attendance.work_date,end=attendance.work_date) }}">Kembali ke laporan</a>
+{% endblock %}
+{% block content %}
+<div class="two-column">
+{% for phase in ['in','out'] %}
+{% set prefix = 'check_' ~ phase ~ '_' %}
+<section class="card">
+<div class="section-heading">
+<h2>{{ 'Check-in' if phase == 'in' else 'Check-out' }}</h2>
+<strong>{{ attendance[prefix ~ 'at']|clock }} WIB</strong>
+</div>
+{% if attendance[prefix ~ 'photo'] %}
+<a href="{{ url_for('employee.photo',attendance_id=attendance.id,phase=phase) }}" target="_blank" rel="noopener" class="photo-link">
+<img class="attendance-photo" src="{{ url_for('employee.photo',attendance_id=attendance.id,phase=phase) }}" alt="Selfie {{ 'check-in' if phase == 'in' else 'check-out' }} {{ attendance.name }}" loading="lazy">
+</a>
+{% else %}
+<div class="photo-empty">{{ icon('camera') }}<p>{{ 'Foto dihapus oleh kebijakan retensi.' if attendance[prefix ~ 'at'] else 'Belum check-out.' }}</p>
+</div>
+{% endif %}
+<dl class="detail-list">
+<div>
+<dt>Waktu server</dt>
+<dd>{{ attendance[prefix ~ 'at'].strftime('%d %b %Y %H:%M:%S') if attendance[prefix ~ 'at'] else '-' }} WIB</dd>
+</div>
+<div>
+<dt>Koordinat browser</dt>
+<dd>{{ attendance[prefix ~ 'latitude'] if attendance[prefix ~ 'latitude'] is not none else '-' }}, {{ attendance[prefix ~ 'longitude'] if attendance[prefix ~ 'longitude'] is not none else '-' }}</dd>
+</div>
+<div>
+<dt>Akurasi GPS</dt>
+<dd>{{ attendance[prefix ~ 'accuracy'] if attendance[prefix ~ 'accuracy'] is not none else '-' }} m</dd>
+</div>
+<div>
+<dt>Jarak ke kantor</dt>
+<dd>{{ attendance[prefix ~ 'distance'] if attendance[prefix ~ 'distance'] is not none else '-' }} m</dd>
+</div>
+</dl>
+</section>
+{% endfor %}
+</div>
+<div class="notice">Snapshot kantor: {{ attendance.office_latitude }}, {{ attendance.office_longitude }} &middot; radius {{ attendance.office_radius_m }} m &middot; akurasi maksimal {{ attendance.office_max_accuracy_m }} m. GPS dan selfie berasal dari browser; bukan jaminan anti-spoofing atau liveness.</div>
+{% endblock %}

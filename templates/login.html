@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block title %}Masuk &middot; Elrise HRIS{% endblock %}
+{% block content %}
+<div class="login-layout">
+<section class="login-story">
+<a class="brand" href="{{ url_for('auth.login') }}" aria-label="Elrise HRIS">
+<img class="brand-symbol" data-brand-logo src="{{ url_for('static', filename='img/elrise-symbol-web.png') }}" alt="" width="256" height="286">
+<span class="brand-copy">
+<img class="brand-wordmark" data-brand-logo src="{{ url_for('static', filename='img/elrise-wordmark-web.png') }}" alt="Elrise" width="552" height="154">
+<small>by Elkyno Technology</small>
+</span>
+</a>
+<div class="story-content">
+<div class="story-copy">
+<p class="eyebrow">A LITTLE MORE HUMAN.</p>
+<h1>Hari kerja baik,<br>dimulai di sini.</h1>
+<p>Satu tempat untuk tim Anda. Kehadiran yang jelas, pengelolaan yang mudah, dan waktu untuk hal yang lebih penting.</p>
+</div>
+<div class="story-art" aria-hidden="true">
+<div class="orbit orbit-one">
+</div>
+<div class="orbit orbit-two">
+</div>
+<div class="art-tile tile-pin">{{ icon('pin') }}<span>People, in place.</span>
+</div>
+<div class="art-tile tile-time">
+<small>JAKARTA, INDONESIA</small>
+<strong data-live-clock>--:--:--</strong>
+<span>Waktu server &middot; WIB</span>
+</div>
+<div class="art-tile tile-check">{{ icon('check') }}<span>Good days ahead.</span>
+</div>
+</div>
+</div>
+<div class="story-footer">
+<span>People-first. Always.</span>
+<span>ELRISE / 01</span>
+</div>
+</section>
+<section class="login-form-panel">
+<div class="login-form-wrap">
+<span class="pill">YOUR EVERYDAY WORKSPACE</span>
+<h2>Selamat datang.</h2>
+<p>Masuk ke ruang kerja Anda dengan akun perusahaan.</p>
+{% if error %}
+<div class="notice notice-danger" role="alert">{{ error }}</div>
+{% endif %}
+<form method="post" action="{{ url_for('auth.login') }}" class="form-stack">{{ csrf() }}<label>Email akun<input name="email" type="email" autocomplete="username" placeholder="nama@perusahaan.com" maxlength="190" required autofocus>
+</label>
+<label>Password<span class="password-field">
+<input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="128" placeholder="Masukkan password" required>
+<button type="button" class="password-toggle" data-password-toggle="login-password" aria-label="Tampilkan password">Lihat</button>
+</span>
+</label>
+<button class="button button-primary button-full" type="submit">Masuk ke workspace {{ icon('arrow') }}</button>
+</form>
+<div class="login-help">{{ icon('lock') }}<p>Belum punya akun atau lupa password?<br>
+<strong>Hubungi Admin HR perusahaan Anda.</strong>
+</p>
+</div>
+<p class="login-legal">Akses diberikan sesuai role dan perusahaan Anda. Tidak ada pendaftaran publik.</p>
+</div>
+<span class="login-copyright">&copy; {{ server_now.year }} Elkyno Technology</span>
+</section>
+</div>
+{% endblock %}

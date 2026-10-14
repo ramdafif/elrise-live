@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block page_title %}{{ 'Edit kantor & geofence' if office else 'Kantor baru' }}{% endblock %}
+{% block page_description %}Aturan ini divalidasi kembali oleh server saat setiap absensi.{% endblock %}
+{% block content %}
+<section class="card form-card wide">
+<form method="post" class="form-stack">{{ csrf() }}<div class="form-grid">
+<label class="span-two">Nama kantor<input name="name" value="{{ office.name if office else '' }}" maxlength="120" required>
+</label>
+<label class="span-two">Alamat<textarea name="address" maxlength="500" required>{{ office.address if office else '' }}</textarea>
+</label>
+<label>Latitude<input id="office-latitude" name="latitude" type="number" step="0.0000001" min="-90" max="90" value="{{ office.latitude if office else '' }}" required>
+</label>
+<label>Longitude<input id="office-longitude" name="longitude" type="number" step="0.0000001" min="-180" max="180" value="{{ office.longitude if office else '' }}" required>
+</label>
+<div class="span-two">
+<button class="button button-outline button-sm" id="office-location-button" type="button">{{ icon('pin') }} Gunakan posisi saya</button>
+<p id="office-location-status" class="muted" role="status">Pastikan titik pusat kantor tepat; fitur lokasi memerlukan HTTPS atau localhost.</p>
+</div>
+<label>Radius geofence (meter)<input name="radius_m" type="number" min="10" max="5000" value="{{ office.radius_m if office else 100 }}" required>
+</label>
+<label>Akurasi GPS maksimal (meter)<input name="max_accuracy_m" type="number" min="1" max="200" value="{{ office.max_accuracy_m if office else 50 }}" required>
+</label>
+<label>Jam masuk WIB<input name="start_time" type="time" value="{{ office.start_time|clock if office else '09:00' }}" required>
+</label>
+<label>Jam pulang WIB<input name="end_time" type="time" value="{{ office.end_time|clock if office else '17:00' }}" required>
+</label>
+</div>
+<fieldset>
+<legend>Hari kerja</legend>
+<div class="day-options">
+{% for weekday in ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'] %}
+<label class="checkbox-label">
+<input type="checkbox" name="working_days" value="{{ loop.index }}" {% if (office and loop.index|string in office.working_days.split(',')) or (not office and loop.index <= 5) %}checked{% endif %}>{{ weekday }}</label>
+{% endfor %}
+</div>
+</fieldset>
+<label class="checkbox-label">
+<input type="checkbox" name="is_active" value="1" {% if not office or office.is_active %}checked{% endif %}>Kantor aktif</label>
+<div class="notice">Versi pertama mendukung shift dalam satu tanggal WIB. Aturan check-in disimpan sebagai snapshot dan dipakai untuk check-out hari tersebut.</div>
+<div class="form-actions">
+<button class="button button-primary" type="submit">Simpan kantor</button>
+<a class="button button-outline" href="{{ url_for('admin.offices') }}">Batal</a>
+</div>
+</form>
+</section>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block page_title %}{{ 'Edit karyawan' if employee else 'Anggota tim baru' }}{% endblock %}
+{% block page_description %}{{ 'Perubahan data mencabut sesi login karyawan demi keamanan.' if employee else 'Data karyawan dan akun Employee dibuat dalam satu transaksi.' }}{% endblock %}
+{% block content %}
+{% if not offices %}
+<div class="notice notice-danger">Tambahkan kantor aktif terlebih dahulu. <a href="{{ url_for('admin.office_form') }}">Tambah kantor</a>
+</div>
+{% endif %}
+<section class="card form-card wide">
+<form method="post" class="form-stack">{{ csrf() }}<div class="form-grid">
+<label>Nama lengkap<input name="name" value="{{ employee.name if employee else '' }}" maxlength="120" required>
+</label>
+<label>Nomor karyawan<input name="employee_number" value="{{ employee.employee_number if employee else '' }}" maxlength="32" required>
+</label>
+<label>Email login<input name="email" type="email" value="{{ employee.email if employee else '' }}" maxlength="190" autocomplete="off" required>
+</label>
+<label>Telepon<input name="phone" value="{{ employee.phone if employee else '' }}" maxlength="32">
+</label>
+<label>Departemen<input name="department" value="{{ employee.department if employee else '' }}" maxlength="120">
+</label>
+<label>Jabatan<input name="job_title" value="{{ employee.job_title if employee else '' }}" maxlength="120">
+</label>
+<label>Tanggal mulai kerja<input type="date" name="join_date" value="{{ employee.join_date if employee else server_now.date() }}" required>
+</label>
+<label>Kantor penempatan<select name="office_id" required>
+<option value="">Pilih kantor aktif</option>
+{% for office in offices %}
+<option value="{{ office.id }}" {% if employee and employee.office_id == office.id %}selected{% endif %}>{{ office.name }}</option>
+{% endfor %}
+</select>
+</label>
+{% if not employee %}
+<label class="span-two">Password awal<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+<small>Berikan secara privat. Karyawan wajib menggantinya saat login pertama.</small>
+</label>
+{% endif %}
+</div>
+{% if employee %}
+<label class="checkbox-label">
+<input name="is_active" type="checkbox" value="1" {% if employee.is_active %}checked{% endif %}>Karyawan aktif</label>
+{% endif %}
+<div class="form-actions">
+<button class="button button-primary" type="submit">{{ 'Simpan perubahan' if employee else 'Buat karyawan & akun' }}</button>
+<a href="{{ url_for('admin.employees') }}" class="button button-outline">Batal</a>
+</div>
+</form>
+</section>
+{% if employee %}
+<section class="card form-card wide">
+<div class="section-heading">
+<div>
+<h2>Pengelolaan akun</h2>
+<p>Reset password mencabut semua sesi; hapus hanya tersedia tanpa riwayat.</p>
+</div>
+</div>
+<div class="form-actions">
+<button class="button button-outline" type="button" data-dialog="reset-employee">{{ icon('lock') }} Reset password</button>
+<form method="post" action="{{ url_for('admin.delete_employee',employee_id=employee.id) }}" data-confirm="Hapus permanen data dan akun karyawan ini? Jika ada riwayat, tindakan akan ditolak.">{{ csrf() }}<button class="button button-danger" type="submit">Hapus karyawan</button>
+</form>
+</div>
+</section>
+<dialog id="reset-employee">
+<div class="dialog-heading">
+<h2>Reset password karyawan</h2>
+<button type="button" class="dialog-close" data-close-dialog aria-label="Tutup">&times;</button>
+</div>
+<p>{{ employee.name }} &middot; {{ employee.email }}</p>
+<form method="post" action="{{ url_for('admin.reset_employee',employee_id=employee.id) }}" class="form-stack" data-confirm="Reset password dan cabut semua sesi karyawan ini?">{{ csrf() }}<label>Password awal baru<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+</label>
+<button class="button button-primary" type="submit">Reset password</button>
+</form>
+</dialog>
+{% endif %}
+{% endblock %}

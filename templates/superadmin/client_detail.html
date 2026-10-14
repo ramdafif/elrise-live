@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon, empty with context %}
+{% block page_title %}{{ company.name }}{% endblock %}
+{% block page_description %}{{ company.code }} &middot; {{ employee_count }} / {{ company.employee_limit }} karyawan aktif{% endblock %}
+{% block actions %}
+<a href="{{ url_for('superadmin.client_form', client_id=company.id) }}" class="button button-outline">Edit PT</a>
+<form method="post" action="{{ url_for('superadmin.toggle_client', client_id=company.id) }}" data-confirm="{{ 'Menonaktifkan PT akan menghentikan akses seluruh akun perusahaan. Lanjutkan?' if company.is_active else 'Aktifkan perusahaan ini?' }}">{{ csrf() }}<button type="submit" class="button {{ 'button-danger' if company.is_active else 'button-primary' }}">{{ 'Nonaktifkan' if company.is_active else 'Aktifkan PT' }}</button>
+</form>
+{% endblock %}
+{% block content %}
+<div class="two-column">
+<section class="card">
+<div class="section-heading">
+<h2>Informasi layanan</h2>
+<span class="badge badge-{{ 'approved' if company.is_active and company.service_start <= server_now.date() <= company.service_end else 'rejected' }}">{{ 'Aktif' if company.is_active and company.service_start <= server_now.date() <= company.service_end else 'Nonaktif / di luar periode' }}</span>
+</div>
+<dl class="detail-list">
+<div>
+<dt>Email kontak</dt>
+<dd>{{ company.email }}</dd>
+</div>
+<div>
+<dt>Telepon</dt>
+<dd>{{ company.phone or '-' }}</dd>
+</div>
+<div>
+<dt>Alamat</dt>
+<dd>{{ company.address or '-' }}</dd>
+</div>
+<div>
+<dt>Periode subscription</dt>
+<dd>{{ company.service_start|date_id }} - {{ company.service_end|date_id }}</dd>
+</div>
+<div>
+<dt>Retensi selfie</dt>
+<dd>{{ company.photo_retention_days or config.PHOTO_RETENTION_DAYS }} hari</dd>
+</div>
+</dl>
+</section>
+<section class="card">
+<div class="section-heading">
+<h2>Admin perusahaan</h2>
+<button class="button button-primary button-sm" data-dialog="new-admin" type="button">{{ icon('plus') }} Admin</button>
+</div>
+{% for admin in admins %}
+<div class="list-item">
+<span class="avatar avatar-light">{{ admin.name[:1] }}</span>
+<div class="list-main">
+<strong>{{ admin.name }}</strong>
+<small>{{ admin.email }}</small>
+</div>
+<button class="button button-outline button-sm" type="button" data-dialog="reset-{{ admin.id }}">Reset</button>
+</div>
+<dialog id="reset-{{ admin.id }}">
+<div class="dialog-heading">
+<h2>Reset password admin</h2>
+<button class="dialog-close" type="button" data-close-dialog aria-label="Tutup">&times;</button>
+</div>
+<p>{{ admin.email }} &middot; seluruh sesi akan dicabut.</p>
+<form method="post" action="{{ url_for('superadmin.reset_admin', client_id=company.id, user_id=admin.id) }}" class="form-stack" data-confirm="Reset password admin ini?">{{ csrf() }}<label>Password awal baru<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+</label>
+<button class="button button-primary" type="submit">Reset password</button>
+</form>
+</dialog>
+{% else %}{{ empty('Belum ada Admin PT.') }}{% endfor %}
+</section>
+</div>
+<section class="card">
+<div class="section-heading">
+<div>
+<h2>Ringkasan kehadiran</h2>
+<p>14 tanggal terakhir yang memiliki absensi. Foto tetap privat untuk tenant.</p>
+</div>
+</div>
+{% if attendance %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Tanggal</th>
+<th>Total hadir</th>
+<th>Terlambat</th>
+</tr>
+</thead>
+<tbody>
+{% for entry in attendance %}
+<tr>
+<td>{{ entry.work_date|date_id }}</td>
+<td>{{ entry.total }}</td>
+<td>{{ entry.late }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Belum ada absensi di perusahaan ini.') }}{% endif %}
+</section>
+<dialog id="new-admin">
+<div class="dialog-heading">
+<h2>Buat Admin PT</h2>
+<button type="button" class="dialog-close" data-close-dialog aria-label="Tutup">&times;</button>
+</div>
+<p>Akun hanya dapat mengelola {{ company.name }}.</p>
+<form method="post" action="{{ url_for('superadmin.create_admin',client_id=company.id) }}" class="form-stack">{{ csrf() }}<label>Nama<input name="name" maxlength="120" required>
+</label>
+<label>Email<input name="email" type="email" autocomplete="off" maxlength="190" required>
+</label>
+<label>Password awal<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+</label>
+<button class="button button-primary" type="submit">Buat akun admin</button>
+</form>
+</dialog>
+{% endblock %}

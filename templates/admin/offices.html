@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, csrf, empty with context %}
+{% block page_title %}Tempat tim Anda berkarya.{% endblock %}
+{% block page_description %}Titik kantor, radius geofence, dan jadwal kerja yang jelas.{% endblock %}
+{% block actions %}
+<a class="button button-primary" href="{{ url_for('admin.office_form') }}">{{ icon('plus') }} Tambah kantor</a>
+{% endblock %}
+{% block content %}
+<div class="office-grid">
+{% for office in offices %}
+<article class="card office-card">
+<div class="geofence-art" aria-hidden="true">
+<div class="geofence-circle">{{ icon('pin') }}</div>
+<span>{{ office.radius_m }} m radius</span>
+</div>
+<div class="section-heading">
+<h2>{{ office.name }}</h2>
+<span class="badge badge-{{ 'approved' if office.is_active else 'rejected' }}">{{ 'Aktif' if office.is_active else 'Nonaktif' }}</span>
+</div>
+<p>{{ office.address }}</p>
+<dl class="detail-list">
+<div>
+<dt>Koordinat</dt>
+<dd>{{ office.latitude }}, {{ office.longitude }}</dd>
+</div>
+<div>
+<dt>Akurasi GPS maksimal</dt>
+<dd>{{ office.max_accuracy_m }} m</dd>
+</div>
+<div>
+<dt>Jam kerja</dt>
+<dd>{{ office.start_time|clock }} - {{ office.end_time|clock }} WIB</dd>
+</div>
+<div>
+<dt>Karyawan aktif</dt>
+<dd>{{ office.employee_count }}</dd>
+</div>
+</dl>
+<div class="form-actions">
+<a class="button button-primary button-sm" href="{{ url_for('admin.office_form',office_id=office.id) }}">Edit pengaturan</a>
+<form method="post" action="{{ url_for('admin.delete_office',office_id=office.id) }}" data-confirm="Hapus kantor ini? Kantor dengan karyawan atau absensi tidak dapat dihapus.">{{ csrf() }}<button type="submit" class="button button-outline button-sm">Hapus</button>
+</form>
+</div>
+</article>
+{% else %}
+<section class="card">{{ empty('Tambahkan lokasi kantor pertama Anda.') }}</section>
+{% endfor %}
+</div>
+{% endblock %}

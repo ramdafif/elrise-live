@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import icon, empty, pagination with context %}
+{% block page_title %}Perusahaan{% endblock %}
+{% block page_description %}Kelola tenant, kapasitas karyawan, dan subscription sederhana.{% endblock %}
+{% block actions %}
+<a href="{{ url_for('superadmin.client_form') }}" class="button button-primary">{{ icon('plus') }} Tambah PT</a>
+{% endblock %}
+{% block content %}
+<section class="card">
+<form class="filter-bar" method="get">
+<label class="search-label">Cari perusahaan<input type="search" name="q" value="{{ search }}" maxlength="100" placeholder="Nama atau kode PT">
+</label>
+<button class="button button-outline" type="submit">Cari</button>
+{% if search %}
+<a class="text-link" href="{{ url_for('superadmin.clients') }}">Reset</a>
+{% endif %}
+</form>
+{% if companies %}
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Perusahaan</th>
+<th>Karyawan aktif</th>
+<th>Hadir hari ini</th>
+<th>Layanan</th>
+<th>Status</th>
+<th>
+</th>
+</tr>
+</thead>
+<tbody>
+{% for company in companies %}
+<tr>
+<td>
+<strong>{{ company.name }}</strong>
+<small class="cell-subtitle">{{ company.code }} &middot; {{ company.email }}</small>
+</td>
+<td>{{ company.employee_count }} / {{ company.employee_limit }}</td>
+<td>{{ company.attendance_count }}</td>
+<td>{{ company.service_start|date_id }}<small class="cell-subtitle">s.d. {{ company.service_end|date_id }}</small>
+</td>
+<td>
+<span class="badge badge-{{ 'approved' if company.is_active and company.service_start <= server_now.date() <= company.service_end else 'rejected' }}">{{ 'Aktif' if company.is_active and company.service_start <= server_now.date() <= company.service_end else 'Nonaktif / belum berlaku / berakhir' }}</span>
+</td>
+<td>
+<a class="button button-outline button-sm" href="{{ url_for('superadmin.client_detail', client_id=company.id) }}">Kelola</a>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Tidak ada perusahaan yang ditemukan.') }}{% endif %}{{ pagination(page,total,limit) }}</section>
+{% endblock %}

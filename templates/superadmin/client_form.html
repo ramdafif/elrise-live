@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf with context %}
+{% block page_title %}{{ 'Edit perusahaan' if company else 'Perusahaan baru' }}{% endblock %}
+{% block page_description %}Setiap PT memiliki akun dan data yang terisolasi.{% endblock %}
+{% block content %}
+<section class="card form-card wide">
+<form method="post" class="form-stack">{{ csrf() }}<div class="form-grid">
+<label>Nama PT<input name="name" value="{{ company.name if company else '' }}" maxlength="160" required>
+</label>
+<label>Kode perusahaan<input name="code" value="{{ company.code if company else '' }}" minlength="2" maxlength="32" pattern="([A-Za-z0-9_]|-){2,32}" required>
+</label>
+<label>Email HR/perusahaan<input type="email" name="email" value="{{ company.email if company else '' }}" maxlength="190" required>
+</label>
+<label>Telepon<input name="phone" value="{{ company.phone if company else '' }}" maxlength="32">
+</label>
+<label class="span-two">Alamat<textarea name="address" maxlength="500">{{ company.address if company else '' }}</textarea>
+</label>
+<label>Batas karyawan aktif<input type="number" name="employee_limit" min="1" max="100000" value="{{ company.employee_limit if company else 50 }}" required>
+</label>
+<label>Retensi selfie (hari)<input type="number" name="photo_retention_days" min="1" max="365" value="{{ company.photo_retention_days if company and company.photo_retention_days else '' }}" placeholder="Default platform: {{ config.PHOTO_RETENTION_DAYS }}">
+<small>Kosongkan untuk mengikuti kebijakan platform.</small>
+</label>
+<label>Awal layanan<input type="date" name="service_start" value="{{ company.service_start if company else default_start }}" required>
+</label>
+<label>Akhir layanan<input type="date" name="service_end" value="{{ company.service_end if company else default_end }}" required>
+</label>
+</div>
+<label class="checkbox-label">
+<input type="checkbox" name="is_active" value="1" {% if company and company.is_active %}checked{% endif %}>Aktifkan perusahaan</label>
+<div class="notice">PT baru dapat disimpan nonaktif, lalu buat Admin PT dan aktifkan setelah siap.</div>
+<div class="form-actions">
+<button type="submit" class="button button-primary">Simpan perusahaan</button>
+<a href="{{ url_for('superadmin.clients') }}" class="button button-outline">Batal</a>
+</div>
+</form>
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+instance/
+static/uploads/attendance/*
+!static/uploads/attendance/.gitkeep
+*.log
+test-results/
