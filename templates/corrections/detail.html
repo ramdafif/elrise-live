@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, badge, icon with context %}
+{% block page_title %}Koreksi #{{ correction.id }}{% endblock %}
+{% block page_description %}{{ correction.name }} &middot; {{ correction.employee_number }} &middot; {{ correction.work_date|date_id }}{% endblock %}
+{% block actions %}{{ badge(correction.status) }}<a class="button button-outline" href="{{ url_for('corrections.admin_requests' if user.role == 'admin' else 'corrections.employee_requests') }}">Semua pengajuan</a>{% endblock %}
+{% block content %}
+{% if stale %}<div class="notice notice-danger" role="alert">Catatan kehadiran berubah sejak pengajuan. Persetujuan diblokir; tolak atau batalkan, lalu ajukan ulang dari data terbaru.</div>{% endif %}
+<div class="two-column">
+<section class="card">
+<h2>Catatan pembanding</h2>
+<dl class="detail-list">
+<div><dt>Jam asli saat pengajuan</dt><dd>{{ correction.source_check_in_at|clock }} - {{ correction.source_check_out_at|clock }} WIB</dd></div>
+<div><dt>Jam efektif saat pengajuan</dt><dd>{{ correction.base_check_in_at|clock }} - {{ correction.base_check_out_at|clock }} WIB</dd></div>
+<div><dt>Koreksi acuan</dt><dd>{{ '#' ~ correction.base_correction_id if correction.base_correction_id else 'Tidak ada' }}</dd></div>
+<div><dt>Jam efektif sekarang</dt><dd>{{ effective.check_in_at|clock if effective else '--:--' }} - {{ effective.check_out_at|clock if effective else '--:--' }} WIB</dd></div>
+</dl>
+{% if original %}
+<p class="muted">Bukti asli tetap tersimpan sesuai kebijakan retensi. Jam efektif dapat berbeda dari waktu pengambilan GPS/selfie.</p>
+{% if user.role == 'admin' %}<a class="text-link" href="{{ url_for('admin.attendance_detail', attendance_id=original.id) }}">Lihat bukti asli {{ icon('arrow') }}</a>{% endif %}
+{% for phase in ['in','out'] %}{% if original['check_' ~ phase ~ '_photo'] %}<a class="button button-outline button-sm" href="{{ url_for('employee.photo',attendance_id=original.id,phase=phase) }}" target="_blank" rel="noopener">Selfie {{ 'masuk' if phase == 'in' else 'pulang' }} asli</a>{% endif %}{% endfor %}
+{% else %}<div class="notice">Tidak ada catatan absensi asli saat ini. Tidak ada selfie atau GPS yang dibuat oleh koreksi.</div>{% endif %}
+</section>
+<section class="card">
+<h2>{{ kinds[correction.kind] }}</h2>
+<div class="time-pair"><div><p>Usulan masuk</p><strong>{{ correction.proposed_check_in_at|clock }}</strong><small>WIB</small></div><div><p>Usulan pulang</p><strong>{{ correction.proposed_check_out_at|clock }}</strong><small>WIB</small></div></div>
+<p class="preserve-lines">{{ correction.reason }}</p>
+<dl class="detail-list"><div><dt>Kantor acuan</dt><dd>{{ correction.office_name }}</dd></div><div><dt>Jadwal acuan</dt><dd>{{ correction.scheduled_start|clock }} - {{ correction.scheduled_end|clock }} WIB</dd></div><div><dt>Terlambat setelah koreksi</dt><dd>{{ correction.late_minutes }} menit</dd></div></dl>
+{% if not correction.source_attendance_id %}<p class="muted">Jadwal kantor disalin saat pengajuan, bukan bukti lokasi pada tanggal kehadiran. Verifikasi kesesuaiannya sebelum menyetujui.</p>{% endif %}
+</section>
+</div>
+{% if correction.status == 'pending' %}
+<section class="card">
+{% if user.role == 'admin' %}
+<h2>Keputusan Admin PT</h2>
+<form method="post" action="{{ url_for('corrections.review',correction_id=correction.id) }}" class="form-stack" data-confirm="Simpan keputusan koreksi? Keputusan tidak bisa diubah.">{{ csrf() }}
+<label>Catatan keputusan (wajib untuk penolakan)<textarea name="admin_note" maxlength="500" rows="3"></textarea></label>
+<div class="form-actions"><button type="submit" name="status" value="approved" class="button button-primary" {% if stale %}disabled{% endif %}>Setujui koreksi</button><button type="submit" name="status" value="rejected" class="button button-danger">Tolak koreksi</button></div>
+</form>
+{% else %}
+<p>Pengajuan menunggu Admin PT. Pembatalan hanya tersedia sebelum keputusan disimpan.</p>
+<form method="post" action="{{ url_for('corrections.cancel',correction_id=correction.id) }}" data-confirm="Batalkan pengajuan koreksi ini?">{{ csrf() }}<button class="button button-outline" type="submit">Batalkan koreksi</button></form>
+{% endif %}
+</section>
+{% elif correction.admin_note %}<div class="notice preserve-lines">Catatan keputusan: {{ correction.admin_note }}</div>{% endif %}
+<section class="card"><h2>Jejak audit</h2>
+{% for event in audit %}<article class="leave-entry"><strong>{{ 'Diajukan' if event.action == 'submitted' else event.action|label }}</strong><p>{{ event.actor_name }} &middot; {{ event.created_at.strftime('%d %b %Y %H:%M:%S') }} WIB</p>{% if event.note %}<p class="preserve-lines">{{ event.note }}</p>{% endif %}</article>{% endfor %}
+</section>
+{% endblock %}

@@ -8,6 +8,7 @@ from mysql.connector import IntegrityError
 
 from app.db import execute, query, transaction
 from app.utils.auth import client_available, roles_required
+from app.utils.attendance import attendance_source, effective_record
 from app.utils.geofence import validate_location
 from app.utils.photos import decode_selfie, private_path, remove_selfie, save_selfie
 from app.utils.validation import JAKARTA, ValidationError, day, now, number, pagination, sql_time, text
@@ -42,10 +43,11 @@ def serializer():
 @roles_required("employee")
 def dashboard():
     today = now().date()
-    record = today_attendance()
+    record = effective_record(g.client["id"], g.employee["id"], today)
     office = query("SELECT * FROM office_locations WHERE id=%s AND client_id=%s", (g.employee["office_id"], g.client["id"]), one=True)
-    stats = query("SELECT COUNT(*) AS total,COALESCE(SUM(status='late'),0) AS late FROM attendances WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s", (g.employee["id"], g.client["id"], today.replace(day=1), today), one=True)
-    recent = query("SELECT * FROM attendances WHERE employee_id=%s AND client_id=%s ORDER BY work_date DESC LIMIT 4", (g.employee["id"], g.client["id"]))
+    source = attendance_source()
+    stats = query(f"SELECT COUNT(*) AS total,COALESCE(SUM(status='late'),0) AS late FROM {source} effective WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s", (g.employee["id"], g.client["id"], today.replace(day=1), today), one=True)
+    recent = query(f"SELECT * FROM {source} effective WHERE employee_id=%s AND client_id=%s ORDER BY work_date DESC LIMIT 4", (g.employee["id"], g.client["id"]))
     return render_template("employee/dashboard.html", employee=g.employee, office=office, attendance=record, stats=stats, recent=recent)
 
 
@@ -73,6 +75,9 @@ def attendance():
     except ValidationError as issue:
         office, error = None, str(issue)
     office_data = {"name": office["name"], "latitude": float(office["latitude"]), "longitude": float(office["longitude"]), "radius_m": office["radius_m"], "max_accuracy_m": office["max_accuracy_m"]} if office else None
+    effective = effective_record(g.client["id"], g.employee["id"], now().date())
+    if effective and effective["correction_id"]:
+        record = effective
     return render_template("employee/attendance.html", attendance=record, office=office, office_data=office_data, error=error)
 
 
@@ -82,6 +87,9 @@ def attendance_challenge():
     require_privacy()
     current = now()
     record = today_attendance(current.date())
+    effective = effective_record(g.client["id"], g.employee["id"], current.date())
+    if effective and effective["correction_id"] and effective["check_out_at"]:
+        raise ValidationError("Kehadiran hari ini sudah lengkap melalui koreksi yang disetujui.", 409)
     if record and record["check_out_at"]:
         raise ValidationError("Absensi hari ini sudah lengkap.", 409)
     office = office_for(g.employee, record)
@@ -127,6 +135,9 @@ def submit_attendance():
             if not employee["privacy_accepted_at"] or employee["privacy_version"] != current_app.config["PRIVACY_VERSION"]:
                 raise ValidationError("Persetujuan privasi tidak lagi berlaku.", 403)
             record = today_attendance(current.date())
+            effective = effective_record(company["id"], employee["id"], current.date())
+            if effective and effective["correction_id"] and effective["check_out_at"]:
+                raise ValidationError("Kehadiran hari ini sudah lengkap melalui koreksi yang disetujui.", 409)
             action = data["action"]
             if action == "check_in" and record:
                 raise ValidationError("Anda sudah check-in hari ini.", 409)
@@ -181,8 +192,9 @@ def history():
 
     start, end = date_range(request.args)
     params = (g.employee["id"], g.client["id"], start, end)
-    total = query("SELECT COUNT(*) AS total FROM attendances WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s", params, one=True)["total"]
-    records = query("SELECT * FROM attendances WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s ORDER BY work_date DESC LIMIT %s OFFSET %s", params + (limit, offset))
+    source = attendance_source()
+    total = query(f"SELECT COUNT(*) AS total FROM {source} effective WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s", params, one=True)["total"]
+    records = query(f"SELECT * FROM {source} effective WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s ORDER BY work_date DESC LIMIT %s OFFSET %s", params + (limit, offset))
     return render_template("employee/history.html", attendances=records, total=total, page=page, limit=limit, start=start, end=end)
 
 
@@ -219,7 +231,7 @@ def leaves():
         with transaction():
             query("SELECT id FROM employees WHERE id=%s AND client_id=%s FOR UPDATE", (g.employee["id"], g.client["id"]), one=True)
             existing = query("SELECT id FROM leave_requests WHERE employee_id=%s AND client_id=%s AND status IN ('pending','approved') AND start_date<=%s AND end_date>=%s LIMIT 1", (g.employee["id"], g.client["id"], end, start), one=True)
-            attendance_exists = query("SELECT id FROM attendances WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s LIMIT 1", (g.employee["id"], g.client["id"], start, end), one=True)
+            attendance_exists = query(f"SELECT employee_id FROM {attendance_source()} effective WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s LIMIT 1", (g.employee["id"], g.client["id"], start, end), one=True)
             if existing or attendance_exists:
                 raise ValidationError("Tanggal bertabrakan dengan pengajuan atau absensi yang sudah ada.")
             execute("INSERT INTO leave_requests (client_id,employee_id,kind,start_date,end_date,reason) VALUES (%s,%s,%s,%s,%s,%s)", (g.client["id"], g.employee["id"], kind, start, end, reason))

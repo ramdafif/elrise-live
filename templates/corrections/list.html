@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import badge, empty, icon, pagination with context %}
+{% block page_title %}Catatan tepat, keputusan jelas.{% endblock %}
+{% block page_description %}{{ 'Tinjau koreksi kehadiran karyawan perusahaan Anda.' if user.role == 'admin' else 'Pantau pengajuan koreksi dan keputusan Admin PT Anda.' }}{% endblock %}
+{% block actions %}
+{% if user.role == 'employee' %}<a class="button button-primary" href="{{ url_for('corrections.new_request') }}">{{ icon('plus') }} Ajukan koreksi</a>
+{% else %}<span class="badge badge-pending">{{ pending_corrections }} menunggu review</span>{% endif %}
+{% endblock %}
+{% block content %}
+<section class="card">
+<form class="filter-bar" method="get"><label>Status<select name="status">
+<option value="" {% if not status %}selected{% endif %}>Semua</option>
+{% for value in ['pending','approved','rejected','canceled'] %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|label }}</option>{% endfor %}
+</select></label><button class="button button-outline" type="submit">Tampilkan</button></form>
+{% for correction in corrections %}
+<article class="leave-entry correction-entry">
+<div class="section-heading"><div><h3>{{ correction.work_date|date_id }}</h3><p>{{ kinds[correction.kind] }}{% if user.role == 'admin' %}<br>{{ correction.name }} &middot; {{ correction.employee_number }}{% endif %}</p></div>{{ badge(correction.status) }}</div>
+<p>Usulan efektif: <strong>{{ correction.proposed_check_in_at|clock }} - {{ correction.proposed_check_out_at|clock }} WIB</strong></p>
+<p class="preserve-lines">{{ correction.reason }}</p>
+{% if correction.admin_note %}<div class="notice preserve-lines">Catatan keputusan: {{ correction.admin_note }}</div>{% endif %}
+<a class="button button-outline button-sm" href="{{ url_for('corrections.admin_detail' if user.role == 'admin' else 'corrections.employee_detail', correction_id=correction.id) }}">{{ 'Tinjau koreksi' if user.role == 'admin' and correction.status == 'pending' else 'Detail pengajuan' }}</a>
+</article>
+{% else %}{{ empty('Belum ada koreksi dengan status ini.') }}{% endfor %}
+{{ pagination(page,total,limit) }}
+</section>
+{% endblock %}

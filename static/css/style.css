@@ -341,7 +341,19 @@ button:focus-visible,a:focus-visible {
     background:radial-gradient(ellipse at 0 100%,#204f5738,transparent 60%),var(--navy-deep);
     display:flex;
     flex-direction:column;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-color:#6d919c transparent;
+    scrollbar-width:thin;
     z-index:40
+}
+.sidebar::-webkit-scrollbar {
+    width:7px
+}
+.sidebar::-webkit-scrollbar-thumb {
+    border:2px solid var(--navy-deep);
+    border-radius:999px;
+    background:#6d919c
 }
 .tenant-switch {
     display:flex;
@@ -418,7 +430,8 @@ button:focus-visible,a:focus-visible {
 }
 .sidebar-footer {
     margin-top:auto;
-    padding-top:22px
+    padding-top:22px;
+    flex-shrink:0
 }
 .system-status {
     display:flex;
@@ -2121,6 +2134,93 @@ dialog>p {
     }
     .attendance-layout {
         grid-template-columns:minmax(0,1.15fr) minmax(260px,1fr)
+    }
+}
+@media(min-width:1001px) and (max-height:820px) {
+    .sidebar {
+        padding:22px 20px 16px
+    }
+    .brand {
+        padding:9px;
+        border-radius:13px
+    }
+    .brand-symbol {
+        width:33px;
+        height:38px
+    }
+    .brand-wordmark {
+        width:104px
+    }
+    .tenant-switch {
+        margin:20px -2px 16px;
+        padding:12px 10px
+    }
+    .nav-label {
+        margin-bottom:8px
+    }
+    .side-nav {
+        gap:3px
+    }
+    .nav-item {
+        padding:10px 12px
+    }
+    .sidebar-footer {
+        padding-top:14px
+    }
+    .system-status {
+        padding-bottom:14px;
+        margin-bottom:14px
+    }
+    .logout {
+        padding-top:12px
+    }
+}
+@media(min-width:1001px) and (max-height:660px) {
+    .sidebar {
+        padding:16px 18px 12px
+    }
+    .brand {
+        padding:7px 9px
+    }
+    .brand-symbol {
+        width:30px;
+        height:35px
+    }
+    .brand-wordmark {
+        width:96px
+    }
+    .brand small,.tenant-switch div>span,.system-status {
+        display:none
+    }
+    .tenant-switch {
+        margin:12px -2px 11px;
+        padding:9px 8px
+    }
+    .tenant-icon {
+        width:28px;
+        height:28px
+    }
+    .nav-label {
+        margin-bottom:6px;
+        font-size:7px
+    }
+    .side-nav {
+        gap:1px
+    }
+    .nav-item {
+        gap:10px;
+        padding:7px 10px;
+        font-size:10px
+    }
+    .nav-item .icon {
+        width:16px;
+        height:16px
+    }
+    .sidebar-footer {
+        padding-top:10px
+    }
+    .logout {
+        padding-top:9px
     }
 }
 @media(max-width:1000px) {

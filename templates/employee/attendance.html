@@ -3,6 +3,7 @@
 {% block page_title %}Hadir, di tempat yang tepat.{% endblock %}
 {% block page_description %}Lokasi akurat. Selfie langsung. Satu langkah yang jelas.{% endblock %}
 {% block content %}
+{% if attendance and attendance.correction_id %}<div class="notice">Jam yang ditampilkan adalah kehadiran efektif dari koreksi #{{ attendance.correction_id }}. Bukti GPS/selfie asli tidak berubah.</div>{% endif %}
 <section id="attendance-app" data-complete="{{ 'true' if attendance and attendance.check_out_at else 'false' }}" data-action="{{ 'check_out' if attendance else 'check_in' }}" data-max-photo-bytes="{{ config.MAX_PHOTO_BYTES }}">
 <script type="application/json" id="office-data">{{ office_data|tojson }}</script>
 <div class="attendance-clock-card">

@@ -7,10 +7,10 @@ from werkzeug.security import generate_password_hash
 
 from app.config import ROOT
 from app.db import connect, execute, query, transaction
+from app.migrations import TABLES, correction_schema_ready, feature_schema_ready, migrate_database
+from app.utils.features import initialize_client_features
 from app.utils.photos import remove_selfie
 from app.utils.validation import ValidationError, now, password
-
-TABLES = {"clients", "users", "employees", "office_locations", "attendances", "leave_requests", "login_limits"}
 
 
 def initialize_database():
@@ -39,6 +39,9 @@ def initialize_database():
         cursor.close()
         connection.close()
 
+    if not existing:
+        migrate_database(apply=True)
+
 
 def register_cli(app):
     @app.cli.command("init-db")
@@ -46,6 +49,24 @@ def register_cli(app):
         """Initialize only an empty or compatible Elrise database; never reset data."""
         initialize_database()
         click.echo(f"Schema siap: {current_app.config['MYSQL_DATABASE']} (tanpa DROP/TRUNCATE).")
+
+    @app.cli.command("migrate-db")
+    @click.option("--apply", is_flag=True, help="Terapkan migrasi; default hanya dry run.")
+    @click.option("--database", "target_database", help="Nama target harus sama dengan konfigurasi aplikasi.")
+    @click.option("--backup-confirmed", is_flag=True, help="Konfirmasi backup/pemulihan siap; tidak membuat backup otomatis.")
+    def migrate_db(apply, target_database, backup_confirmed):
+        """Inspect or explicitly apply additive, versioned migrations."""
+        name = current_app.config["MYSQL_DATABASE"]
+        if apply and target_database != name:
+            raise click.ClickException("Sebutkan --database yang sama dengan MYSQL_DATABASE sebelum menerapkan migrasi.")
+        if apply and not backup_confirmed:
+            raise click.ClickException("Siapkan backup dan pemulihan terlebih dahulu, lalu sertakan --backup-confirmed.")
+        versions = migrate_database(apply=apply)
+        click.echo(f"{'Apply' if apply else 'Dry run (tanpa perubahan)'}: {name}")
+        for version in versions:
+            click.echo(f"{'Diterapkan' if apply else 'Pending'}: {version}")
+        if not versions:
+            click.echo("Tidak ada migrasi pending.")
 
     @app.cli.command("create-superadmin")
     @click.option("--email", "address", prompt=True)
@@ -84,6 +105,8 @@ def register_cli(app):
                 ("CAKRA", "PT Cakrawala Kreasi", "admin@cakrawala.test", "bima@cakrawala.test", "Bima Adiputra"),
             ]:
                 client_id = execute("INSERT INTO clients (name,code,email,address,is_active,employee_limit,service_start,service_end) VALUES (%s,%s,%s,'Jakarta, Indonesia',1,50,%s,%s)", (company, code, admin_email, today - timedelta(days=1), today + timedelta(days=365))).lastrowid
+                if feature_schema_ready():
+                    initialize_client_features(client_id)
                 execute("INSERT INTO users (client_id,name,email,password_hash,role,must_change_password) VALUES (%s,'Admin HR',%s,%s,'admin',0)", (client_id, admin_email, hashed))
                 office_id = execute("INSERT INTO office_locations (client_id,name,address,latitude,longitude) VALUES (%s,'Kantor Jakarta','Jakarta Pusat',-6.2000000,106.8166660)", (client_id,)).lastrowid
                 user_id = execute("INSERT INTO users (client_id,name,email,password_hash,role,must_change_password) VALUES (%s,%s,%s,%s,'employee',0)", (client_id, employee_name, employee_email, hashed)).lastrowid
@@ -106,7 +129,8 @@ def register_cli(app):
                     remove_selfie(record["check_out_photo"])
                     execute("UPDATE attendances SET check_in_photo=NULL,check_out_photo=NULL WHERE id=%s AND client_id=%s", (record["id"], company["id"]))
         attendance_cutoff = (current - timedelta(days=current_app.config["ATTENDANCE_RETENTION_DAYS"])).date()
-        records = query("SELECT id,client_id,check_in_photo,check_out_photo FROM attendances WHERE work_date<%s", (attendance_cutoff,))
+        preserved = " AND NOT EXISTS (SELECT 1 FROM attendance_corrections c WHERE c.client_id=attendances.client_id AND c.employee_id=attendances.employee_id AND c.work_date=attendances.work_date)" if correction_schema_ready() else ""
+        records = query("SELECT id,client_id,check_in_photo,check_out_photo FROM attendances WHERE work_date<%s" + preserved, (attendance_cutoff,))
         attendance_count = len(records)
         if apply:
             for record in records:
@@ -119,6 +143,8 @@ def register_cli(app):
             execute("DELETE FROM leave_requests WHERE end_date<%s", (leave_cutoff,))
             execute("DELETE FROM login_limits WHERE window_started_at<%s", (current - timedelta(days=1),))
         click.echo(f"{'Dihapus' if apply else 'Dry run'}: {photo_count} foto, {attendance_count} absensi, {leave_count} pengajuan.")
+        if correction_schema_ready():
+            click.echo("Koreksi, audit, dan catatan absensi terkait dipertahankan; retensinya memerlukan kebijakan terpisah. Retensi foto tetap berlaku.")
 
     @app.cli.command("erase-employee")
     @click.option("--client-id", type=int, required=True)
@@ -130,6 +156,8 @@ def register_cli(app):
             employee = query("SELECT * FROM employees WHERE id=%s AND client_id=%s FOR UPDATE", (employee_id, client_id), one=True)
             if not employee or employee["is_active"]:
                 raise click.ClickException("Karyawan harus ada dalam tenant tersebut dan sudah nonaktif.")
+            if correction_schema_ready() and query("SELECT id FROM attendance_corrections WHERE employee_id=%s AND client_id=%s LIMIT 1", (employee_id, client_id), one=True):
+                raise click.ClickException("Karyawan memiliki audit koreksi. Penghapusan ditahan sampai kebijakan retensi koreksi disetujui.")
             records = query("SELECT check_in_photo,check_out_photo FROM attendances WHERE employee_id=%s AND client_id=%s", (employee_id, client_id))
             execute("DELETE FROM leave_requests WHERE employee_id=%s AND client_id=%s", (employee_id, client_id))
             execute("DELETE FROM attendances WHERE employee_id=%s AND client_id=%s", (employee_id, client_id))

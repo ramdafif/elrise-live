@@ -6,6 +6,8 @@ from mysql.connector import IntegrityError
 from werkzeug.security import generate_password_hash
 
 from app.db import execute, query, transaction
+from app.migrations import correction_schema_ready
+from app.utils.attendance import attendance_source, effective_record
 from app.utils.auth import roles_required
 from app.utils.excel import IMPORT_HEADERS, read_employees, workbook_bytes
 from app.utils.reports import report_data
@@ -66,7 +68,7 @@ def dashboard():
     stats = {"employees": query("SELECT COUNT(*) AS total FROM employees WHERE client_id=%s AND is_active=1", (g.client["id"],), one=True)["total"],
              "present": counts["present"] + counts["late"], "late": counts["late"], "absent": counts["absent"], "leave": counts["leave"]}
     pending = query("SELECT COUNT(*) AS total FROM leave_requests WHERE client_id=%s AND status='pending'", (g.client["id"],), one=True)["total"]
-    chart = query("SELECT work_date,COUNT(*) AS total,SUM(status='late') AS late FROM attendances WHERE client_id=%s AND work_date BETWEEN %s AND %s GROUP BY work_date ORDER BY work_date", (g.client["id"], today - timedelta(days=6), today))
+    chart = query(f"SELECT work_date,COUNT(*) AS total,SUM(status='late') AS late FROM {attendance_source()} effective WHERE client_id=%s AND work_date BETWEEN %s AND %s GROUP BY work_date ORDER BY work_date", (g.client["id"], today - timedelta(days=6), today))
     mapped = {entry["work_date"]: entry for entry in chart}
     week = [{"date": today - timedelta(days=offset), **mapped.get(today - timedelta(days=offset), {"total": 0, "late": 0})} for offset in range(6, -1, -1)]
     return render_template("admin/dashboard.html", stats=stats, pending=pending, rows=rows[:8], week=week)
@@ -155,7 +157,9 @@ def delete_employee(employee_id):
         record = employee_record(employee_id, lock=True)
         attended = query("SELECT id FROM attendances WHERE employee_id=%s AND client_id=%s LIMIT 1", (employee_id, g.client["id"]), one=True)
         leave = query("SELECT id FROM leave_requests WHERE employee_id=%s AND client_id=%s LIMIT 1", (employee_id, g.client["id"]), one=True)
-        if attended or leave:
+        corrected = query("SELECT id FROM attendance_corrections WHERE employee_id=%s AND client_id=%s LIMIT 1",
+            (employee_id, g.client["id"]), one=True) if correction_schema_ready() else None
+        if attended or leave or corrected:
             raise ValidationError("Karyawan memiliki riwayat. Nonaktifkan akun melalui Edit; penghapusan mengikuti kebijakan retensi.")
         execute("DELETE FROM employees WHERE id=%s AND client_id=%s", (employee_id, g.client["id"]))
         execute("DELETE FROM users WHERE id=%s AND client_id=%s AND role='employee'", (record["user_id"], g.client["id"]))
@@ -262,7 +266,20 @@ def attendance_detail(attendance_id):
     record = query("SELECT a.*,e.name,e.employee_number FROM attendances a JOIN employees e ON e.id=a.employee_id AND e.client_id=a.client_id WHERE a.id=%s AND a.client_id=%s", (attendance_id, g.client["id"]), one=True)
     if not record:
         abort(404)
-    return render_template("admin/attendance_detail.html", attendance=record)
+    effective = effective_record(g.client["id"], record["employee_id"], record["work_date"])
+    return render_template("admin/attendance_detail.html", attendance=record, effective=effective)
+
+@bp.get("/attendance/employee/<int:employee_id>/<work_date>")
+@roles_required("admin")
+def effective_attendance_detail(employee_id, work_date):
+    employee = employee_record(employee_id)
+    record = effective_record(g.client["id"], employee_id, day({"date": work_date}, "date"))
+    if not record:
+        abort(404)
+    if record["id"]:
+        return redirect(url_for("admin.attendance_detail", attendance_id=record["id"]))
+    record.update(name=employee["name"], employee_number=employee["employee_number"])
+    return render_template("admin/attendance_detail.html", attendance=record, effective=record)
 
 
 @bp.get("/attendance/export.xlsx")
@@ -272,12 +289,16 @@ def export_attendance():
     labels = {"present": "Hadir", "late": "Terlambat", "absent": "Belum hadir", "leave": "Izin/cuti", "off": "Libur"}
     headers = ["Tanggal WIB", "NIK", "Nama", "Departemen", "Kantor", "Status", "Masuk WIB", "Pulang WIB", "Terlambat (menit)", "Lat masuk", "Lng masuk", "Akurasi masuk (m)", "Jarak masuk (m)", "Lat pulang", "Lng pulang", "Akurasi pulang (m)", "Jarak pulang (m)"]
     values = []
+    headers.extend(["Sumber kehadiran", "ID koreksi disetujui", "Masuk asli WIB", "Pulang asli WIB"])
     for row in rows:
         employee = row["employee"]
         record = row["attendance"] or {}
         values.append([row["date"].isoformat(), employee["employee_number"], employee["name"], employee["department"], record.get("office_name") or employee["assigned_office"], labels[row["status"]],
             record["check_in_at"].strftime("%H:%M:%S") if record.get("check_in_at") else "", record["check_out_at"].strftime("%H:%M:%S") if record.get("check_out_at") else "", record.get("late_minutes", 0),
-            *[float(record[key]) if record.get(key) is not None else "" for key in ("check_in_latitude", "check_in_longitude", "check_in_accuracy", "check_in_distance", "check_out_latitude", "check_out_longitude", "check_out_accuracy", "check_out_distance")]])
+            *[float(record[key]) if record.get(key) is not None else "" for key in ("check_in_latitude", "check_in_longitude", "check_in_accuracy", "check_in_distance", "check_out_latitude", "check_out_longitude", "check_out_accuracy", "check_out_distance")],
+            "Koreksi disetujui; GPS hanya bukti asli" if record.get("correction_id") else ("Absensi asli" if record else ""), record.get("correction_id") or "",
+            record["original_check_in_at"].strftime("%H:%M:%S") if record.get("original_check_in_at") else "",
+            record["original_check_out_at"].strftime("%H:%M:%S") if record.get("original_check_out_at") else ""])
     return send_file(workbook_bytes(headers, values, "Absensi"), as_attachment=True, download_name=f"elrise-absensi-{start}-{end}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
@@ -314,7 +335,7 @@ def review_leave(leave_id):
         if record["status"] != "pending":
             raise ValidationError("Pengajuan sudah diproses.", 409)
         if status == "approved":
-            existing = query("SELECT id FROM attendances WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s LIMIT 1", (record["employee_id"], g.client["id"], record["start_date"], record["end_date"]), one=True)
+            existing = query(f"SELECT employee_id FROM {attendance_source()} effective WHERE employee_id=%s AND client_id=%s AND work_date BETWEEN %s AND %s LIMIT 1", (record["employee_id"], g.client["id"], record["start_date"], record["end_date"]), one=True)
             if existing:
                 raise ValidationError("Tanggal pengajuan sudah memiliki absensi. Tidak dapat disetujui.")
         execute("UPDATE leave_requests SET status=%s,admin_note=%s,reviewed_by=%s,reviewed_at=%s WHERE id=%s AND client_id=%s", (status, note, g.user["id"], now(), leave_id, g.client["id"]))

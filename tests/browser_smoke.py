@@ -86,6 +86,21 @@ def main():
         assert geometry["form"]["top"] >= 0 and geometry["controlsVisible"], geometry
         assert geometry["form"]["bottom"] + 8 <= geometry["copyright"]["top"], geometry
 
+    def desktop_sidebar_fit(page):
+        geometry = page.evaluate("""() => {
+            const sidebar = document.querySelector("#sidebar");
+            const logout = document.querySelector(".logout").getBoundingClientRect();
+            const controls = [...document.querySelectorAll("#sidebar a, #sidebar button")].map(element => {
+                const rectangle = element.getBoundingClientRect();
+                return {text: element.innerText.trim(), top: rectangle.top, bottom: rectangle.bottom};
+            });
+            return {viewportHeight: innerHeight, sidebarHeight: sidebar.clientHeight,
+                sidebarScrollHeight: sidebar.scrollHeight, logout: {top: logout.top, bottom: logout.bottom}, controls};
+        }""")
+        assert geometry["sidebarScrollHeight"] <= geometry["sidebarHeight"], geometry
+        assert geometry["logout"]["top"] >= 0 and geometry["logout"]["bottom"] <= geometry["viewportHeight"], geometry
+        assert all(control["top"] >= 0 and control["bottom"] <= geometry["viewportHeight"] for control in geometry["controls"]), geometry
+
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(channel="msedge", headless=True,
@@ -107,6 +122,18 @@ def main():
                 layout_page.get_by_role("button", name="Masuk ke workspace").click()
             assert rejected.value.status == 401
             expect(layout_page.locator(".notice-danger")).to_be_visible()
+
+            for width, height in [(1366, 768), (1280, 720), (1280, 600), (1024, 600)]:
+                for address in ("owner@elrise.test", "admin@nusantara.test", "rani@nusantara.test"):
+                    sidebar_context = browser.new_context(viewport={"width": width, "height": height})
+                    sidebar_page = sidebar_context.new_page()
+                    register(sidebar_page)
+                    login(sidebar_page, address)
+                    desktop_sidebar_fit(sidebar_page)
+                    sidebar_page.get_by_role("button", name="Keluar dari akun").click()
+                    sidebar_page.wait_for_url("**/login")
+                    sidebar_context.close()
+            checks.append("desktop sidebar at 100% fits all navigation and keeps logout visible/clickable for superadmin, admin, and employee at common short desktop heights")
             for width, height in [(1280, 560), (1366, 768)]:
                 layout_page.set_viewport_size({"width": width, "height": height})
                 desktop_login_fit(layout_page)
@@ -192,6 +219,59 @@ def main():
             exported.value.save_as(str(output / "browser-attendance.xlsx"))
             checks.append("authenticated Excel download")
 
+            yesterday = str(now().date() - timedelta(days=1))
+            employee_page.goto(base + "/employee/corrections/new")
+            employee_page.get_by_label("Tanggal kehadiran").fill(yesterday)
+            employee_page.get_by_label("Jenis koreksi").select_option("missing_attendance")
+            employee_page.get_by_label("Usulan jam masuk (WIB)").fill("08:30")
+            employee_page.get_by_label("Usulan jam pulang (WIB)").fill("17:30")
+            employee_page.get_by_label("Alasan koreksi").fill("Browser QA koreksi tanpa catatan asli")
+            for width in (390, 360):
+                employee_page.set_viewport_size({"width": width, "height": 844})
+                no_overflow(employee_page)
+            employee_page.screenshot(path=str(output / "mobile-correction-form.png"), full_page=True)
+            employee_page.get_by_role("button", name="Kirim koreksi").click()
+            expect(employee_page.locator("h1")).to_contain_text("Koreksi #")
+            correction_id = int(employee_page.url.rsplit("/", 1)[1])
+            expect(employee_page.get_by_role("button", name="Batalkan koreksi")).to_be_visible()
+            no_overflow(employee_page)
+            admin_page.goto(base + "/admin/corrections")
+            expect(admin_page.locator("[data-correction-count]")).to_have_text("1")
+            admin_page.get_by_role("link", name="Tinjau koreksi", exact=True).click()
+            expect(admin_page.get_by_role("heading", name="Catatan pembanding")).to_be_visible()
+            no_overflow(admin_page)
+            admin_page.screenshot(path=str(output / "desktop-correction-review.png"), full_page=True)
+            admin_page.set_viewport_size({"width": 390, "height": 844})
+            no_overflow(admin_page)
+            admin_page.screenshot(path=str(output / "mobile-correction-review.png"), full_page=True)
+            admin_page.get_by_label("Catatan keputusan (wajib untuk penolakan)").fill("Diverifikasi dalam browser QA")
+            admin_page.get_by_role("button", name="Setujui koreksi", exact=True).click()
+            expect(admin_page.locator("[data-correction-count]")).to_have_text("0")
+            admin_page.set_viewport_size({"width": 1440, "height": 1000})
+            employee_page.reload()
+            expect(employee_page.locator(".heading-actions .badge")).to_have_text("Disetujui")
+            no_overflow(employee_page)
+            employee_page.screenshot(path=str(output / "mobile-correction-approved.png"), full_page=True)
+            employee_page.goto(base + f"/employee/history?start={yesterday}&end={yesterday}")
+            expect(employee_page.locator(".history-entry")).to_have_count(1)
+            expect(employee_page.locator(".history-entry")).to_contain_text("08:30 WIB")
+            expect(employee_page.locator(".history-entry")).to_contain_text("Tanpa bukti GPS/selfie asli")
+            no_overflow(employee_page)
+            with app.app_context():
+                assert query("SELECT status FROM attendance_corrections WHERE id=%s", (correction_id,), one=True)["status"] == "approved"
+                assert query("SELECT COUNT(*) AS total FROM attendances WHERE work_date=%s", (yesterday,), one=True)["total"] == 0
+            checks.append("mobile 360/390px correction submission, tenant admin queue/badge, desktop/mobile approval, audit, effective history without fabricated GPS/selfie")
+
+            employee_page.goto(base + f"/employee/corrections/new?work_date={yesterday}")
+            employee_page.get_by_label("Jenis koreksi").select_option("check_in")
+            expect(employee_page.get_by_label("Usulan jam pulang (WIB)")).to_be_disabled()
+            employee_page.get_by_label("Usulan jam masuk (WIB)").fill("08:45")
+            employee_page.get_by_label("Alasan koreksi").fill("Browser QA pembatalan")
+            employee_page.get_by_role("button", name="Kirim koreksi").click()
+            employee_page.get_by_role("button", name="Batalkan koreksi").click()
+            expect(employee_page.locator(".heading-actions .badge")).to_have_text("Dibatalkan")
+            checks.append("mobile pending correction cancellation and type-specific time fields")
+
             owner_context = browser.new_context(viewport={"width": 1440, "height": 1000})
             owner_page = owner_context.new_page()
             register(owner_page)
@@ -214,6 +294,25 @@ def main():
             with app.app_context():
                 assert query("SELECT is_active FROM clients WHERE code='BROWSER-QA'", one=True)["is_active"]
             checks.append("superadmin create company, admin account dialog, activation confirmation")
+
+            expect(owner_page.get_by_label("Payroll", exact=True)).not_to_be_checked()
+            expect(owner_page.get_by_label("Koreksi absensi", exact=True)).to_be_checked()
+            expect(owner_page.get_by_label("Integrasi Gajiku", exact=True)).not_to_be_checked()
+            owner_page.get_by_label("Payroll", exact=True).check()
+            owner_page.get_by_label("Integrasi Gajiku", exact=True).check()
+            owner_page.get_by_role("button", name="Simpan pengaturan fitur").click()
+            expect(owner_page.get_by_text("Gajiku: Belum dikonfigurasi", exact=True)).to_be_visible()
+            expect(owner_page.get_by_role("heading", name="Riwayat perubahan fitur")).to_be_visible()
+            no_overflow(owner_page)
+            owner_page.screenshot(path=str(output / "desktop-client-features.png"), full_page=True)
+            owner_page.set_viewport_size({"width": 390, "height": 844})
+            no_overflow(owner_page)
+            owner_page.get_by_label("Integrasi Gajiku", exact=True).uncheck()
+            owner_page.get_by_role("button", name="Simpan pengaturan fitur").click()
+            expect(owner_page.get_by_text("Gajiku: Nonaktif", exact=True)).to_be_visible()
+            no_overflow(owner_page)
+            owner_page.screenshot(path=str(output / "mobile-client-features.png"), full_page=True)
+            checks.append("client feature defaults, entitlement update, honest Gajiku status and audit on desktop and 390px mobile")
 
             compact = browser.new_context(viewport={"width": 360, "height": 800}, is_mobile=True, has_touch=True)
             compact_page = compact.new_page()

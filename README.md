@@ -1,6 +1,69 @@
 # ELRISE HRIS
 
-HRIS independen milik Elkyno Technology: Flask + MySQL, tiga role, absensi geofence + selfie, izin/cuti, dan laporan Excel. Tidak ada payroll, integrasi Gajiku, framework frontend, atau data mock di endpoint aplikasi.
+HRIS independen milik Elkyno Technology: Flask + MySQL, tiga role, absensi geofence + selfie, koreksi dengan approval/audit, izin/cuti, dan laporan Excel. Modul payroll dan integrasi Gajiku belum dibangun; tidak ada framework frontend atau data mock di endpoint aplikasi.
+
+Kesiapan demo/MVP, batasan CRUD, dan checklist sebelum production tersedia di [Production.md](Production.md). Checklist membedakan fitur yang sudah ada dari deployment, UAT perangkat fisik, dan proses operasional yang belum diverifikasi.
+
+## Pengembangan Fitur: Tahap 1 dan 2
+
+Management fitur per client tersedia di Superadmin > Perusahaan > Detail PT > Fitur & integrasi. Default: payroll OFF, koreksi absensi ON, Gajiku OFF. Hanya Superadmin dapat menyimpan perubahan; setiap perubahan mencatat aktor, waktu, dan nilai sebelum/sesudah. Izin Gajiku memerlukan payroll aktif dan tetap menampilkan belum dikonfigurasi, bukan koneksi live.
+
+Tahap 1 mengimplementasikan entitlement, audit, guard backend, dan migrasi. Tahap 2 menambahkan alur koreksi end-to-end di development. Modul payroll belum tersedia. Akses fitur menggunakan guard `feature_required` yang tetap memeriksa role, tenant, masa layanan, dan konfigurasi terbaru pada setiap request; operasi koreksi memeriksa ulang akses di dalam transaksi.
+
+### Demo stabil dan development terpisah di mesin ini
+
+- Demo presentasi existing: `http://127.0.0.1:5002`, menjalankan baseline `D:\Projects\Combine\elrise-demo-baseline-20261014`, bukan source yang sedang dikembangkan.
+- Baseline mempertahankan `.env` dan database demo existing, serta menggunakan folder foto existing. Database/foto demo tidak dimigrasi atau direset selama tahap 1.
+- Preview development: `http://127.0.0.1:5003`, memakai `.env.features-development`, database `elrise_features_dev_20261014`, secret serta nama cookie session tersendiri, dan folder foto `instance/features-development/attendance-runtime`. Cookie berbeda mencegah login development menimpa sesi demo pada hostname yang sama. Folder development lama tetap utuh; penggantian lokasi dilakukan saat nol referensi foto karena ACL identitas runtime berbeda.
+- Preview development memakai akun seed development yang sama alamat emailnya; password bersumber dari `DEMO_PASSWORD` dalam konfigurasi privat. Tidak ada absensi atau selfie rekaan.
+- Konfigurasi privat dan log tetap dikecualikan dari Git. Jangan memakai seed/kredensial development untuk production.
+
+Jika proses belum berjalan, jalankan masing-masing di terminal terpisah dari direktori Elrise:
+
+~~~powershell
+& '..\elrise-demo-baseline-20261014\Start-Demo.ps1'
+& '.\scripts\start_feature_development.ps1'
+~~~
+
+Jangan menjalankan launcher kedua untuk port yang sudah digunakan. Launcher baseline membutuhkan virtual environment Elrise yang sama; jangan mengubah dependency lingkungan demo saat presentasi.
+
+### Migrasi database existing
+
+`database/schema.sql` tetap merupakan schema inti. `init-db` pada database kosong menginisialisasi inti dan migrasi fitur. Pada database existing, `init-db` tidak otomatis menjalankan migrasi fitur. Jika melakukan import SQL manual, lanjutkan dengan migrasi eksplisit yang sesuai.
+
+`migrate-db` default hanya dry run dan tidak mengubah schema/data. Penerapan memerlukan nama database yang sama dengan konfigurasi dan konfirmasi backup. Contoh berikut khusus lingkungan development terpisah, bukan database demo:
+
+~~~powershell
+$env:ELRISE_ENV_FILE = '.env.features-development'
+$env:FLASK_SKIP_DOTENV = '1'
+.\.venv\Scripts\python.exe -m flask --app wsgi migrate-db
+# Setelah backup dan prosedur pemulihan disiapkan:
+.\.venv\Scripts\python.exe -m flask --app wsgi migrate-db --apply --database elrise_features_dev_20261014 --backup-confirmed
+~~~
+
+`--backup-confirmed` tidak membuat atau memverifikasi backup otomatis. `ELRISE_ENV_FILE` memilih file konfigurasi terpisah; file yang tidak ditemukan menyebabkan startup gagal, bukan fallback ke konfigurasi demo. `FLASK_SKIP_DOTENV=1` mencegah Flask CLI memuat `.env` demo terlebih dahulu.
+
+Migrasi ber-versi memakai checksum dan lock per database. Database aplikasi lain, schema inti yang tidak kompatibel, checksum berubah, serta versi migrasi tidak dikenal ditolak. DDL MySQL bukan transaksi yang bisa seluruhnya di-rollback; migrasi MVP dibuat tambahan/idempotent sehingga retry tidak menimpa konfigurasi. Recovery tetap memerlukan prosedur teruji. Startup HTTP tidak menjalankan migrasi otomatis; database lama tetap dapat menjalankan HRIS inti dan menampilkan pemberitahuan bahwa management fitur belum dirilis.
+
+Verifikasi tahap 1 pada 14 Oktober 2026: 89 tes pytest lulus di database QA acak terpisah; smoke test Edge headless lulus, termasuk management fitur desktop/mobile, tanpa error JavaScript/CSP. Kamera/GPS pada smoke test disimulasikan, bukan bukti UAT perangkat nyata. Kesiapan production tetap mengikuti `Production.md` dan pengembangan selanjutnya mengikuti `Planning.md`.
+
+### Koreksi absensi: tahap 2
+
+- Karyawan: buka **Riwayat > Ajukan koreksi** (termasuk tanggal tanpa catatan), atau **Status koreksi** untuk memantau keputusan dan membatalkan pengajuan pending. Menu sidebar **Koreksi absensi** juga tersedia.
+- Admin PT: buka **Koreksi absensi**, periksa badge pending, bandingkan jam asli/efektif/usulan, lalu setujui atau tolak dengan alasan. Hanya tenant yang sesuai dapat melihat dan memproses pengajuan.
+- Salah jam masuk/pulang dan lupa check-out memakai catatan efektif sebagai acuan. Lupa absensi tanpa catatan memerlukan kedua jam; jadwal kantor saat pengajuan disimpan sebagai snapshot, bukan bukti GPS historis.
+- Usulan menggunakan WIB pada satu tanggal, sejak tanggal masuk kerja dan dalam `ATTENDANCE_RETENTION_DAYS`, tanpa waktu masa depan. Jam pulang harus setelah jam masuk. Izin/cuti pending atau approved yang beririsan harus diselesaikan lebih dahulu.
+- Satu pending per karyawan/tanggal, token request unik, row lock, serta transaksi pengajuan/keputusan/audit mencegah efek ganda. Retry atau keputusan yang sudah selesai ditolak 409. Jika absensi asli berubah saat pending, approval ditolak; batalkan/tolak lalu ajukan ulang. Penolakan wajib memiliki catatan.
+- `app/utils/attendance.py` menjadi sumber kehadiran efektif untuk semua dashboard, riwayat, detail dan Excel. Payroll berikutnya harus memakainya juga. Koreksi approved tetap dihitung ketika entitlement OFF; OFF hanya menutup operasi koreksi, bukan menghapus data atau membatalkan keputusan.
+- Catatan asli tidak ditimpa. Tanggal tanpa absensi asli tidak menghasilkan row `attendances`, koordinat, atau selfie buatan. Excel menambahkan sumber kehadiran, ID koreksi, dan jam asli; kolom GPS tetap bukti asli, bukan bukti jam koreksi.
+
+Verifikasi 14 Oktober 2026: **136 tes pytest lulus**, termasuk 47 tes khusus koreksi; smoke test Edge desktop dan mobile 390px/360px lulus tanpa error JavaScript/CSP. Sensor browser tetap simulasi. Migrasi `0002_attendance_corrections` hanya diterapkan ke database development, sesudah dry-run dan backup SQL yang direstore ke database QA serta dicocokkan checksum 10 tabel. Data existing setelah migrasi tetap identik. Backup/manifest: `instance/features-development/backups/pre-phase2-20261014-185133/` (diabaikan Git).
+
+Backup foto development lama tidak berhasil karena ACL; database development saat itu tidak memiliki absensi/referensi foto. Lokasi runtime baru diuji baca/tulis tanpa memindahkan foto. `.env` demo, database/foto demo, kredensial akun, serta Gajiku Live tidak berubah. Tahap 2 belum dipromosikan ke baseline presentasi.
+
+**Retensi koreksi belum ditetapkan:** koreksi, audit, dan absensi yang dirujuk dipertahankan oleh `purge-data`; `erase-employee` menolak karyawan yang memiliki audit koreksi. Retensi foto tetap berlaku. Jangan menjanjikan penghapusan lengkap atau sign-off production sebelum kebijakan audit disepakati dan diuji.
+
+**Rollback:** hentikan promosi dan nonaktifkan operasi koreksi jika bermasalah; baseline demo tetap tersedia. Jangan menjalankan downgrade schema, menghapus audit, atau restore backup otomatis. Kode tahap 1 tidak memahami koreksi approved, sehingga tidak boleh langsung digunakan untuk membaca database tahap 2 yang sudah memiliki koreksi. Rencana pemulihan data dan rilis kompatibel perlu disepakati terpisah.
 
 ## Audit Gajiku Live dan pola yang diadaptasi
 
@@ -107,7 +170,7 @@ Employee dapat mengajukan izin/cuti/sakit, melihat keputusan/catatan HR, membata
 - Status terlambat dihitung dari jadwal masuk kantor; menit keterlambatan dibulatkan ke atas. Check-out awal tidak diblokir secara otomatis; HR dapat memeriksa jam aktual versus jadwal.
 - Koordinat, radius, akurasi, nama kantor dan jam kerja disnapshot saat check-in; check-out memakai snapshot itu agar perubahan titik kantor tidak mengubah validasi hari berjalan. Kantor nonaktif tetap memblokir absensi.
 - Kehadiran disimpan nyata. Status belum hadir/izin/libur pada laporan dihitung dari roster aktif, tanggal mulai kerja, hari kerja kantor dan cuti disetujui. Untuk karyawan nonaktif, laporan mempertahankan catatan hadirnya, bukan merekonstruksi histori status aktif/penempatan yang belum dicatat v1.
-- V1 mendukung shift dalam satu tanggal, satu kantor penempatan per employee, tanpa kalender libur nasional, koreksi manual, offline attendance atau jadwal historis berlapis.
+- V1 mendukung shift dalam satu tanggal dan satu kantor penempatan per employee. Development tahap 2 mendukung koreksi melalui approval/audit; belum ada kalender libur nasional, offline attendance atau jadwal historis berlapis.
 - getUserMedia meminta kamera depan dan menolak kamera yang mengaku facingMode selain user; webcam desktop dapat tidak melaporkan arah. Pembatasan galeri/front-camera hanya UI. Browser tidak bisa menjamin selfie live, lokasi nyata, atau mencegah spoofing/GPS injection sepenuhnya. Watermark bukan bukti kriptografis keaslian foto/lokasi.
 
 ## Privasi dan retensi
@@ -128,9 +191,9 @@ flask --app wsgi purge-data
 flask --app wsgi purge-data --apply
 ~~~
 
-Foto kedaluwarsa dihapus dan path dikosongkan; riwayat tetap tersedia sampai retensi absensi. Catatan/pengajuan kedaluwarsa juga dihapus. Jalankan dengan user deployment yang memiliki akses file; kegagalan penghapusan harus dimonitor. Backup, salinan export, file import dan log perlu kebijakan terpisah yang konsisten. File orphan akibat crash dan foto uji yang tidak lagi direferensikan perlu rekonsiliasi storage; job ini tidak menyapu sembarang file secara rekursif.
+Foto kedaluwarsa dihapus dan path dikosongkan; riwayat biasa tersedia sampai retensi absensi. Catatan/pengajuan izin kedaluwarsa juga dihapus. Pengecualian tahap 2: koreksi, audit, dan absensi terkait dipertahankan sampai kebijakan retensinya disetujui. Jalankan dengan user deployment yang memiliki akses file; kegagalan penghapusan harus dimonitor. Backup, salinan export, file import dan log perlu kebijakan terpisah yang konsisten. File orphan akibat crash dan foto uji yang tidak lagi direferensikan perlu rekonsiliasi storage; job ini tidak menyapu sembarang file secara rekursif.
 
-Untuk permohonan penghapusan yang sudah dinilai dan tidak terhalang kewajiban retensi: nonaktifkan karyawan, lalu operator menjalankan perintah berikut dengan konfirmasi interaktif. Perintah memerlukan client_id dan employee_id yang cocok dan menghapus seluruh akun/riwayat/foto karyawan nonaktif itu:
+Untuk permohonan penghapusan yang sudah dinilai dan tidak terhalang kewajiban retensi: nonaktifkan karyawan, lalu operator menjalankan perintah berikut dengan konfirmasi interaktif. Perintah memerlukan client_id dan employee_id yang cocok. Karyawan dengan audit koreksi ditolak tanpa menghapus data; selain itu perintah menghapus akun/riwayat/foto karyawan nonaktif:
 
 ~~~bash
 flask --app wsgi erase-employee --client-id 1 --employee-id 10

@@ -68,6 +68,60 @@
 <section class="card">
 <div class="section-heading">
 <div>
+<h2>Fitur &amp; integrasi</h2>
+<p>Hak akses fitur untuk perusahaan ini, bukan status ketersediaan modul.</p>
+</div>
+{% if feature_management_ready %}
+<span class="badge badge-{{ 'pending' if feature_settings.gajiku else 'canceled' }}">Gajiku: {{ 'Belum dikonfigurasi' if feature_settings.gajiku else 'Nonaktif' }}</span>
+{% endif %}
+</div>
+{% if feature_management_ready %}
+<form method="post" action="{{ url_for('superadmin.update_features', client_id=company.id) }}" class="form-stack" data-confirm="Simpan hak akses fitur perusahaan ini? Riwayat data tidak dihapus.">
+{{ csrf() }}
+<div class="form-grid">
+{% for key, definition in feature_definitions.items() %}
+<div{% if key == 'gajiku' %} class="span-two"{% endif %}>
+<label class="checkbox-label" for="feature-{{ key }}">
+<input id="feature-{{ key }}" type="checkbox" name="{{ key }}" value="1" {% if feature_settings[key] %}checked{% endif %}>
+<strong>{{ definition.label }}</strong>
+</label>
+<p class="muted">{{ definition.description }}</p>
+</div>
+{% endfor %}
+</div>
+<div class="notice">Tahap 1 menyediakan management hak akses. Modul payroll dan alur koreksi absensi belum dirilis. Izin Gajiku tidak membuat koneksi live; payroll wajib aktif sebelum izin integrasi diberikan.</div>
+<div><button class="button button-primary" type="submit">Simpan pengaturan fitur</button></div>
+</form>
+{% else %}
+<div class="notice">Management fitur belum dirilis pada database ini. Fitur HRIS existing tetap berjalan. Terapkan migrasi terverifikasi melalui <code>migrate-db</code> di lingkungan yang sesuai sebelum menggunakan pengaturan fitur.</div>
+{% endif %}
+</section>
+{% if feature_management_ready %}
+<section class="card">
+<div class="section-heading"><div><h2>Riwayat perubahan fitur</h2><p>20 perubahan terakhir, termasuk pencatat dan nilai sebelum/sesudah.</p></div></div>
+{% if feature_audit %}
+<div class="table-wrap">
+<table>
+<thead><tr><th>Waktu (WIB)</th><th>Fitur</th><th>Sebelum</th><th>Sesudah</th><th>Superadmin</th></tr></thead>
+<tbody>
+{% for entry in feature_audit %}
+<tr>
+<td>{{ entry.changed_at.strftime('%d %b %Y %H:%M:%S') }}</td>
+<td>{{ feature_definitions[entry.feature_key].label if entry.feature_key in feature_definitions else entry.feature_key }}</td>
+<td>{{ 'Aktif' if entry.old_enabled else 'Nonaktif' }}</td>
+<td>{{ 'Aktif' if entry.new_enabled else 'Nonaktif' }}</td>
+<td>{{ entry.actor_name }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}{{ empty('Belum ada perubahan fitur. Default sistem tidak dihitung sebagai perubahan manual.') }}{% endif %}
+</section>
+{% endif %}
+<section class="card">
+<div class="section-heading">
+<div>
 <h2>Ringkasan kehadiran</h2>
 <p>14 tanggal terakhir yang memiliki absensi. Foto tetap privat untuk tenant.</p>
 </div>

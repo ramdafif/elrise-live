@@ -40,7 +40,7 @@ def application(tmp_path_factory):
 @pytest.fixture
 def app(application):
     with application.app_context():
-        for table in ("attendances", "leave_requests", "employees", "office_locations", "users", "clients", "login_limits"):
+        for table in ("attendance_correction_audit", "attendance_corrections", "feature_audit_logs", "client_features", "attendances", "leave_requests", "employees", "office_locations", "users", "clients", "login_limits"):
             execute(f"DELETE FROM {table}")
     result = application.test_cli_runner().invoke(args=["seed-demo"])
     assert result.exit_code == 0, result.output

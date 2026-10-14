@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% from 'macros.html' import badge, empty, pagination, icon with context %}
 {% block page_title %}Jejak hari kerja Anda.{% endblock %}
-{% block page_description %}Semua catatan resmi memakai waktu server WIB.{% endblock %}
+{% block page_description %}Jam efektif dalam WIB, termasuk koreksi disetujui. Bukti asli tetap terpisah.{% endblock %}
+{% block actions %}{% if corrections_enabled %}<a class="button button-primary" href="{{ url_for('corrections.new_request') }}">{{ icon('plus') }} Ajukan koreksi</a><a class="button button-outline" href="{{ url_for('corrections.employee_requests') }}">Status koreksi</a>{% endif %}{% endblock %}
 {% block content %}
 <section class="card">
 <form class="filter-bar filter-wrap" method="get">
@@ -28,7 +29,7 @@
 <div>
 <span>Check-in</span>
 <strong>{{ attendance.check_in_at|clock }} WIB</strong>
-<small>{{ attendance.check_in_distance }} m &middot; akurasi {{ attendance.check_in_accuracy }} m</small>
+{% if attendance.check_in_distance is not none %}<small>Bukti asli: {{ attendance.check_in_distance }} m &middot; akurasi {{ attendance.check_in_accuracy }} m</small>{% else %}<small>Tanpa bukti GPS/selfie asli</small>{% endif %}
 {% if attendance.check_in_photo %}
 <a class="text-link" href="{{ url_for('employee.photo',attendance_id=attendance.id,phase='in') }}" target="_blank" rel="noopener">{{ icon('camera') }} Selfie masuk</a>
 {% endif %}
@@ -36,8 +37,8 @@
 <div>
 <span>Check-out</span>
 <strong>{{ attendance.check_out_at|clock }} WIB</strong>
-{% if attendance.check_out_at %}
-<small>{{ attendance.check_out_distance }} m &middot; akurasi {{ attendance.check_out_accuracy }} m</small>
+{% if attendance.check_out_distance is not none %}
+<small>Bukti asli: {{ attendance.check_out_distance }} m &middot; akurasi {{ attendance.check_out_accuracy }} m</small>
 {% endif %}
 {% if attendance.check_out_photo %}
 <a class="text-link" href="{{ url_for('employee.photo',attendance_id=attendance.id,phase='out') }}" target="_blank" rel="noopener">{{ icon('camera') }} Selfie pulang</a>
@@ -47,6 +48,8 @@
 {% if attendance.late_minutes %}
 <span class="badge badge-late">Terlambat {{ attendance.late_minutes }} menit</span>
 {% endif %}
+{% if attendance.correction_id %}<div class="notice">Koreksi #{{ attendance.correction_id }} disetujui. Jam asli: {{ attendance.original_check_in_at|clock }} - {{ attendance.original_check_out_at|clock }} WIB. GPS/selfie hanya bukti catatan asli.</div>{% endif %}
+{% if corrections_enabled %}<a class="button button-outline button-sm" href="{{ url_for('corrections.new_request',work_date=attendance.work_date) }}">Koreksi tanggal ini</a>{% endif %}
 </article>
 {% else %}{{ empty('Belum ada absensi dalam periode ini.') }}{% endfor %}{{ pagination(page,total,limit) }}</section>
 {% endblock %}

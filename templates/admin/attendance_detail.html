@@ -2,9 +2,13 @@
 {% from 'macros.html' import badge, icon with context %}
 {% block page_title %}{{ attendance.name }}{% endblock %}
 {% block page_description %}{{ attendance.employee_number }} &middot; {{ attendance.work_date|date_id }} &middot; {{ attendance.office_name }}{% endblock %}
-{% block actions %}{{ badge(attendance.status) }}<a class="button button-outline" href="{{ url_for('admin.attendance',start=attendance.work_date,end=attendance.work_date) }}">Kembali ke laporan</a>
+{% block actions %}{{ badge(effective.status) }}<a class="button button-outline" href="{{ url_for('admin.attendance',start=attendance.work_date,end=attendance.work_date) }}">Kembali ke laporan</a>
 {% endblock %}
 {% block content %}
+<section class="card"><div class="section-heading"><h2>Kehadiran efektif</h2>{{ badge(effective.status) }}</div><p><strong>{{ effective.check_in_at|clock }} - {{ effective.check_out_at|clock }} WIB</strong> &middot; terlambat {{ effective.late_minutes }} menit</p>
+{% if effective.correction_id %}<div class="notice">Menggunakan koreksi #{{ effective.correction_id }} yang disetujui. Waktu server, GPS, dan selfie pada bukti asli tidak ditimpa.</div>{% if corrections_enabled %}<a class="text-link" href="{{ url_for('corrections.admin_detail',correction_id=effective.correction_id) }}">Detail keputusan & audit {{ icon('arrow') }}</a>{% endif %}{% endif %}</section>
+{% if attendance.id %}
+<h2>Bukti absensi asli</h2>
 <div class="two-column">
 {% for phase in ['in','out'] %}
 {% set prefix = 'check_' ~ phase ~ '_' %}
@@ -43,4 +47,5 @@
 {% endfor %}
 </div>
 <div class="notice">Snapshot kantor: {{ attendance.office_latitude }}, {{ attendance.office_longitude }} &middot; radius {{ attendance.office_radius_m }} m &middot; akurasi maksimal {{ attendance.office_max_accuracy_m }} m. GPS dan selfie berasal dari browser; bukan jaminan anti-spoofing atau liveness.</div>
+{% else %}<div class="notice">Tidak ada catatan absensi asli. Kehadiran ini berasal dari koreksi disetujui, tanpa selfie atau koordinat GPS buatan.</div>{% endif %}
 {% endblock %}

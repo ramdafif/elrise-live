@@ -266,3 +266,17 @@ function setupAttendance() {
     });
 }
 setupAttendance();
+
+document.querySelectorAll("[data-correction-form]").forEach(form => {
+    const kind = form.querySelector("[data-correction-kind]");
+    function updateCorrectionFields() {
+        form.querySelectorAll("[data-correction-time]").forEach(input => {
+            const applies = kind.value === "missing_attendance" ||
+                (input.name === "check_in" ? kind.value === "check_in" : ["check_out", "missing_checkout"].includes(kind.value));
+            input.disabled = !applies;
+            input.required = applies;
+        });
+    }
+    kind.addEventListener("change", updateCorrectionFields);
+    updateCorrectionFields();
+});

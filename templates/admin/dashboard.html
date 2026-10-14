@@ -67,6 +67,7 @@
 <h2>{{ pending }} pengajuan<br>menunggu keputusan.</h2>
 <p>Tindak lanjuti izin dan cuti agar tim bisa merencanakan harinya.</p>
 <a href="{{ url_for('admin.leaves') }}" class="button button-primary">Tinjau pengajuan {{ icon('arrow') }}</a>
+{% if corrections_enabled %}<p><a href="{{ url_for('corrections.admin_requests') }}" class="text-link">{{ pending_corrections }} koreksi absensi menunggu {{ icon('arrow') }}</a></p>{% endif %}
 <div class="subscription-note">Layanan aktif sampai <strong>{{ client.service_end|date_id }}</strong>
 </div>
 </section>

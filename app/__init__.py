@@ -7,8 +7,10 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import ROOT, load_config
-from app.db import close_db
+from app.db import close_db, query
+from app.migrations import correction_schema_ready, feature_schema_ready
 from app.utils.auth import csrf_token, load_identity
+from app.utils.features import client_features
 from app.utils.validation import ValidationError, now, sql_time
 
 
@@ -73,7 +75,16 @@ def create_app(test_config=None):
             arguments.update(request.view_args or {})
             arguments["page"] = page
             return url_for(request.endpoint, **arguments)
-        return {"csrf_token": csrf_token, "page_link": page_link, "server_now": now(), "user": getattr(g, "user", None), "client": getattr(g, "client", None)}
+        company = getattr(g, "client", None)
+        user = getattr(g, "user", None)
+        corrections_enabled, pending_corrections = False, 0
+        if company and user and user["role"] in {"admin", "employee"} and feature_schema_ready() and correction_schema_ready():
+            corrections_enabled = client_features(company["id"])["attendance_corrections"]
+            if corrections_enabled and user["role"] == "admin":
+                pending_corrections = query("SELECT COUNT(*) AS total FROM attendance_corrections WHERE client_id=%s AND status='pending'",
+                    (company["id"],), one=True)["total"]
+        return {"csrf_token": csrf_token, "page_link": page_link, "server_now": now(), "user": user, "client": company,
+            "corrections_enabled": corrections_enabled, "pending_corrections": pending_corrections}
 
     @app.template_filter("clock")
     def clock(value):
@@ -109,10 +120,10 @@ def create_app(test_config=None):
             return jsonify(ok=False, message=message), status
         return render_template("error.html", status=status, message=message), status
 
-    from app.routes import admin, auth, employee, superadmin
+    from app.routes import admin, auth, corrections, employee, superadmin
     from app.cli import register_cli
 
-    for blueprint in (auth.bp, superadmin.bp, admin.bp, employee.bp):
+    for blueprint in (auth.bp, superadmin.bp, admin.bp, employee.bp, corrections.bp):
         app.register_blueprint(blueprint)
     app.teardown_appcontext(close_db)
     register_cli(app)

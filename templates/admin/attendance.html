@@ -61,7 +61,8 @@
 </td>
 <td>
 {% if row.attendance %}
-<a class="button button-outline button-sm" href="{{ url_for('admin.attendance_detail',attendance_id=row.attendance.id) }}">Foto & GPS</a>
+<a class="button button-outline button-sm" href="{{ url_for('admin.effective_attendance_detail',employee_id=row.employee.id,work_date=row.date) }}">{{ 'Detail koreksi' if row.attendance.correction_id else 'Foto & GPS' }}</a>
+{% if row.attendance.correction_id %}<small class="cell-subtitle">Koreksi #{{ row.attendance.correction_id }}</small>{% endif %}
 {% else %}
 <span class="muted">-</span>
 {% endif %}

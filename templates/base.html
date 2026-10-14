@@ -106,6 +106,9 @@
 </a>
 {% endfor %}
 </nav>
+{% if corrections_enabled %}
+<nav class="side-nav" aria-label="Koreksi kehadiran"><a href="{{ url_for('corrections.admin_requests' if user.role == 'admin' else 'corrections.employee_requests') }}" class="nav-item {% if request.blueprint == 'corrections' %}active{% endif %}">{{ icon('clock') }}<span>Koreksi absensi</span>{% if user.role == 'admin' %}<small class="badge badge-pending" data-correction-count aria-label="{{ pending_corrections }} koreksi menunggu">{{ pending_corrections }}</small>{% endif %}</a></nav>
+{% endif %}
 <div class="sidebar-footer">
 <div class="system-status">
 <span>

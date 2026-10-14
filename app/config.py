@@ -8,7 +8,11 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_config():
-    load_dotenv(ROOT / ".env")
+    selected_env = os.getenv("ELRISE_ENV_FILE")
+    env_path = ROOT / selected_env if selected_env else ROOT / ".env"
+    if selected_env and not env_path.is_file():
+        raise RuntimeError("ELRISE_ENV_FILE tidak ditemukan; konfigurasi demo tidak dipakai sebagai fallback.")
+    load_dotenv(env_path)
     production = os.getenv("APP_ENV", "production") == "production"
     return {
         "APP_ENV": os.getenv("APP_ENV", "production"),
@@ -19,7 +23,7 @@ def load_config():
         "MYSQL_PASSWORD": os.getenv("MYSQL_PASSWORD", ""),
         "MYSQL_DATABASE": os.getenv("MYSQL_DATABASE", "elrise_db"),
         "MYSQL_SSL_CA": os.getenv("MYSQL_SSL_CA", ""),
-        "SESSION_COOKIE_NAME": "elrise_session",
+        "SESSION_COOKIE_NAME": os.getenv("SESSION_COOKIE_NAME", "elrise_session"),
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         "SESSION_COOKIE_SECURE": production or os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",

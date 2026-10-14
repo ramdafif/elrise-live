@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import csrf, icon with context %}
+{% block page_title %}Luruskan catatan hari Anda.{% endblock %}
+{% block page_description %}Ajukan koreksi jam dalam WIB. Admin PT akan meninjau sebelum kehadiran berubah.{% endblock %}
+{% block actions %}<a class="button button-outline" href="{{ url_for('corrections.employee_requests') }}">Riwayat pengajuan</a>{% endblock %}
+{% block content %}
+<div class="two-column">
+<section class="card">
+<h2>Pengajuan koreksi</h2>
+<form method="post" class="form-stack" data-correction-form>{{ csrf() }}
+<input type="hidden" name="request_key" value="{{ request_key }}">
+<label>Tanggal kehadiran<input name="work_date" type="date" min="{{ employee.join_date }}" max="{{ server_now.date() }}" value="{{ work_date or server_now.date() }}" required></label>
+<label>Jenis koreksi<select name="kind" required data-correction-kind>
+<option value="">Pilih jenis koreksi</option>
+{% for key, name in kinds.items() %}<option value="{{ key }}">{{ name }}</option>{% endfor %}
+</select></label>
+<div class="form-grid">
+<label>Usulan jam masuk (WIB)<input type="time" name="check_in" step="1" data-correction-time></label>
+<label>Usulan jam pulang (WIB)<input type="time" name="check_out" step="1" data-correction-time></label>
+</div>
+<p class="muted">Isi hanya jam yang dikoreksi. Untuk lupa absensi tanpa catatan, isi keduanya. Jam pulang harus setelah jam masuk; shift lintas hari belum didukung.</p>
+<label>Alasan koreksi<textarea name="reason" maxlength="1000" rows="4" required placeholder="Jelaskan kejadian dan jam kehadiran yang benar."></textarea></label>
+<button class="button button-primary" type="submit">Kirim koreksi {{ icon('arrow') }}</button>
+</form>
+</section>
+<section class="card">
+<h2>Catatan tetap transparan.</h2>
+<p>Pengajuan tidak mengubah absensi sebelum disetujui. Satu pengajuan pending per tanggal; Anda bisa membatalkannya selama belum diproses.</p>
+{% if work_date %}
+<div class="notice">Kehadiran efektif {{ work_date|date_id }} saat halaman dibuka:<br><strong>{{ effective.check_in_at|clock if effective else '--:--' }} - {{ effective.check_out_at|clock if effective else '--:--' }} WIB</strong><br>{{ effective.office_name if effective else 'Belum ada catatan kehadiran.' }}</div>
+{% endif %}
+<p>Selfie, GPS, dan waktu server asli tidak ditimpa. Koreksi bukan bukti pengambilan foto atau lokasi baru.</p>
+<p class="muted">Tanpa catatan asli, jadwal dan kantor saat pengajuan disimpan sebagai acuan review. Admin perlu memeriksa kesesuaiannya untuk tanggal tersebut.</p>
+<a class="text-link" href="{{ url_for('employee.history') }}">Periksa riwayat absensi {{ icon('arrow') }}</a>
+</section>
+</div>
+{% endblock %}

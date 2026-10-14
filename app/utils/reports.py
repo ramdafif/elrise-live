@@ -3,6 +3,7 @@ from datetime import timedelta
 from flask import abort, g
 
 from app.db import query
+from app.utils.attendance import attendance_source
 from app.utils.validation import ValidationError, date_range, integer, text
 
 
@@ -25,7 +26,7 @@ def report_data(args):
     employees = query(sql + " ORDER BY e.name,e.id LIMIT 5001", tuple(params))
     if len(employees) > 5000 or len(employees) * ((end - start).days + 1) > 60000:
         raise ValidationError("Laporan terlalu besar. Persempit tanggal, kantor, atau pencarian (maksimal 60.000 baris).")
-    attendances = query("SELECT * FROM attendances WHERE client_id=%s AND work_date BETWEEN %s AND %s LIMIT 60001", (g.client["id"], start, end))
+    attendances = query(f"SELECT * FROM {attendance_source()} effective WHERE client_id=%s AND work_date BETWEEN %s AND %s LIMIT 60001", (g.client["id"], start, end))
     leaves = query("SELECT employee_id,start_date,end_date FROM leave_requests WHERE client_id=%s AND status='approved' AND start_date<=%s AND end_date>=%s LIMIT 60001", (g.client["id"], end, start))
     if len(attendances) > 60000 or len(leaves) > 60000:
         raise ValidationError("Data tenant terlalu besar dalam periode ini. Persempit tanggal laporan.")
